@@ -1,0 +1,6 @@
+requests==2.31.0
+UnityPy==1.10.2
+msgpack==1.0.5
+pandas==2.0.3
+pycryptodome==3.18.0
+pyinstaller
