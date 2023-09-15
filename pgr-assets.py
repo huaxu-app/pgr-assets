@@ -5,6 +5,7 @@ import logging
 import sys
 from enum import Enum
 from typing import Dict, Tuple, Union, List
+from zipfile import ZipFile
 
 import UnityPy
 import msgpack
@@ -18,12 +19,19 @@ DECRYPTION_KEY = 'y5XPvqLOrCokWRIa'
 
 class Source(object):
     def has_blob(self, path: str) -> bool:
+        """Returns true if the source has the blob at the given path"""
         raise NotImplementedError()
 
     def get_blob(self, path: str) -> bytes:
+        """Returns the blob at the given path as binary data"""
         raise NotImplementedError()
 
     def bundle_to_blob(self, bundle: str) -> Union[str, None]:
+        """Returns the blob that contains the bundle, or None if unknown"""
+        raise NotImplementedError()
+
+    def version(self) -> Union[str, None]:
+        """Returns the version of the source, or None if unknown"""
         raise NotImplementedError()
 
 
@@ -38,7 +46,7 @@ class PcStarterData:
 
 
 class PcStarterCdn(Enum):
-    EN = PcStarterData('https://prod-awscdn-gamestarter.kurogame.net/', 143, 4)
+    EN_PC = PcStarterData('https://prod-awscdn-gamestarter.kurogame.net/', 143, 4)
 
 
 class PcStarterSource(Source):
@@ -69,7 +77,7 @@ class PcStarterSource(Source):
             raise Exception(f"Failed to download blob {blob} - {resp.status_code}")
         return resp.content
 
-    def version(self):
+    def version(self) -> Union[str, None]:
         return self.index()['default']['version']
 
     def base_path(self):
@@ -124,6 +132,7 @@ class PatchCdnData:
 class PatchCdn(Enum):
     EN_PC = PatchCdnData('http://prod-encdn-akamai.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en.pc',
                          'standalone')
+    KR = PatchCdnData('http://prod-krcdn-akamai.punishing.net/prod', 'com.herogame.punishing.grayraven.kr', 'android')
 
 
 class PatchCdnSource(Source):
@@ -141,6 +150,7 @@ class PatchCdnSource(Source):
         document_version = config["DocumentVersion"]
         self._cdn_url = self._cdn.base_url(application_version, document_version)
         self._logger.debug(f"Using patch cdn {self._cdn_url}")
+        self._version = application_version
 
     def has_blob(self, blob: str) -> bool:
         return blob in self.resources()
@@ -182,6 +192,9 @@ class PatchCdnSource(Source):
         self._index = msgpack.loads(env.container['assets/temp/index.bytes'].read().script)[0]
         return self._index
 
+    def version(self) -> Union[str, None]:
+        return self._version
+
     @staticmethod
     def get_tab(url: str) -> Dict[str, str]:
         resp = requests.get(url)
@@ -196,7 +209,37 @@ class PatchCdnSource(Source):
         return data
 
     def __str__(self):
-        return f"PatchCdnSource({self._cdn_name} => {self._cdn_url})"
+        return f"PatchCdnSource({self._cdn_name})"
+
+
+class ObbSource(Source):
+    _resources = None
+
+    def __init__(self, obb: str):
+        self._obb = ZipFile(obb, 'r')
+
+    def has_blob(self, blob: str) -> bool:
+        return blob in self.resources()
+
+    def get_blob(self, blob: str) -> bytes:
+        return self._obb.read(self.resources()[blob])
+
+    def bundle_to_blob(self, bundle: str) -> Union[str, None]:
+        # This can't resolve bundles to blobs
+        return None
+
+    def version(self) -> Union[str, None]:
+        return None
+
+    def resources(self) -> Dict[str, str]:
+        if self._resources is not None:
+            return self._resources
+
+        self._resources = {f.filename.split('/')[-1]: f.filename for f in self._obb.filelist if 'matrix' in f.filename}
+        return self._resources
+
+    def __str__(self):
+        return f"ObbSource({self._obb.filename})"
 
 
 def rewrite_text_asset(path: str, data: memoryview) -> Tuple[str, bytearray]:
@@ -265,8 +308,48 @@ def find_bundle(bundle: str, sources: List[Source]) -> bytes:
     raise Exception(f"Failed to resolve blob {blob}")
 
 
+def get_primary(version: str, primary_type: str, obb: Union[str, None]) -> Source:
+    impl = None
+
+    if primary_type == 'obb':
+        impl = ObbSource(obb)
+    elif primary_type in PcStarterCdn.__members__:
+        impl = PcStarterSource(PcStarterCdn[primary_type])
+
+    if impl is None:
+        raise Exception(f"Unknown primary type {primary_type}")
+
+    impl_version = impl.version()
+    logger.info(f"Primary source {impl} version {impl_version}")
+    if impl_version is not None and version != impl_version:
+        logger.error(f"Primary source version mismatch. Expected {version}, got {impl_version}")
+        sys.exit(1)
+
+    return impl
+
+
+def get_patch(version: str, patch_type: str) -> Source:
+    if patch_type not in PatchCdn.__members__:
+        raise Exception(f"Unknown patch type {patch_type}")
+
+    impl = PatchCdnSource(PatchCdn[patch_type], version)
+
+    impl_version = impl.version()
+    logger.info(f"Patch source {patch_type} version {impl_version}")
+    if impl_version is not None and version != impl_version:
+        logger.error(f"Patch source version mismatch. Expected {version}, got {impl_version}")
+        sys.exit(1)
+
+    return impl
+
+
 def main():
     parser = argparse.ArgumentParser(description='Extracts the assets required for kennel')
+    parser.add_argument('--primary', type=str, choices=['obb', 'EN_PC'], default='EN_PC')
+    parser.add_argument('--obb', type=str, help='Path to obb file. Only valid when --primary is set to obb.')
+
+    parser.add_argument('--patch', type=str, choices=['EN_PC', 'KR'], default='EN_PC')
+
     parser.add_argument('--version', type=str, help='The client version to use.', required=True)
     parser.add_argument('--output', type=str, help='Output directory to use', required=True)
     parser.add_argument('bundles', nargs='*', help='Bundles to extract')
@@ -277,16 +360,11 @@ def main():
 
     UnityPy.set_assetbundle_decrypt_key(DECRYPTION_KEY)
 
-    patch_source = PatchCdnSource(PatchCdn.EN_PC, args.version)
-    pc_source = PcStarterSource(PcStarterCdn.EN)
-
-    logger.info(f"PC starter version {pc_source.version()}")
-    if args.version != pc_source.version():
-        logger.error(f"Version mismatch. Expected {pc_source.version()}, got {args.version}")
-        sys.exit(1)
+    primary_source = get_primary(args.version, args.primary, args.obb)
+    patch_source = get_patch(args.version, args.patch)
 
     for bundle in args.bundles:
-        bundle_data = find_bundle(bundle, [pc_source, patch_source])
+        bundle_data = find_bundle(bundle, [primary_source, patch_source])
         env = UnityPy.load(bundle_data)
         logger.info(f"Extracting {bundle}")
         extract_bundle(env, output_dir=args.output)
