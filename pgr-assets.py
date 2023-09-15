@@ -1,90 +1,202 @@
+import dataclasses
 import os
 import argparse
 import logging
-import io
-from typing import Dict, Tuple
+import sys
+from enum import Enum
+from typing import Dict, Tuple, Union, List
 
 import UnityPy
 import msgpack
 import requests
-import pandas as pd
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('pgr-assets')
 
 DECRYPTION_KEY = 'y5XPvqLOrCokWRIa'
-LAUNCHER_CDN_BASE = 'https://prod-awscdn-gamestarter.kurogame.net/'
-KURO_CDN_BASE = 'http://prod-encdn-akamai.kurogame.net/prod'
-
-APP_ID = 'com.kurogame.punishing.grayraven.en.pc'
-APP_PLATFORM = 'standalone'  # android, use standalone for PC
-
-HG_GAME_ID = 143
-HG_GAME_VERSION = 4
 
 
-def get_bundle(path: str) -> UnityPy.Environment:
-    resp = requests.get(path)
-    if resp.status_code != 200:
-        raise Exception(f"Failed to download bundle {path} - {resp.status_code}")
-    return UnityPy.load(resp.content)
+class Source(object):
+    def has_blob(self, path: str) -> bool:
+        raise NotImplementedError()
+
+    def get_blob(self, path: str) -> bytes:
+        raise NotImplementedError()
+
+    def bundle_to_blob(self, bundle: str) -> Union[str, None]:
+        raise NotImplementedError()
 
 
-def get_json(path: str) -> dict:
-    resp = requests.get(path)
-    if resp.status_code != 200:
-        raise Exception(f"Failed to download json {path} - {resp.status_code}")
-    return resp.json()
+@dataclasses.dataclass
+class PcStarterData:
+    cdn: str
+    game_id: int
+    iteration: int
+
+    def index_url(self):
+        return f'{self.cdn}pcstarter/prod/game/G{self.game_id}/{self.iteration}/index.json'
 
 
-def get_tab(path: str) -> pd.DataFrame:
-    resp = requests.get(path)
-    if resp.status_code != 200:
-        raise Exception(f"Failed to download raw {path} - {resp.status_code}")
-    return pd.read_csv(io.StringIO(resp.text), sep="\t")
+class PcStarterCdn(Enum):
+    EN = PcStarterData('https://prod-awscdn-gamestarter.kurogame.net/', 143, 4)
 
 
-def get_index(path: str) -> Dict[str, Tuple[str, str, int]]:
-    env = get_bundle(path)
-    return msgpack.loads(env.container['assets/temp/index.bytes'].read().script)[0]
+class PcStarterSource(Source):
+    _logger = logging.getLogger('PcStarterSource')
+    _index = None
+    _resources = None
+
+    def __init__(self, cdn: PcStarterCdn):
+        self._cdn_name = cdn.name
+        self._cdn = cdn.value
+
+    def index(self):
+        if self._index is not None:
+            return self._index
+
+        self._logger.debug("Getting index from launcher cdn")
+        self._index = self._get_json(self._cdn.index_url())
+        return self._index
+
+    def has_blob(self, blob: str) -> bool:
+        return blob in self.resources()
+
+    def get_blob(self, blob: str) -> bytes:
+        url = self.resources()[blob]
+        self._logger.debug(f"Downloading blob {blob} ({url})")
+        resp = requests.get(url)
+        if resp.status_code != 200:
+            raise Exception(f"Failed to download blob {blob} - {resp.status_code}")
+        return resp.content
+
+    def version(self):
+        return self.index()['default']['version']
+
+    def base_path(self):
+        return self.index()['default']['resourcesBasePath']
+
+    def bundle_to_blob(self, bundle: str) -> Union[str, None]:
+        return None
+
+    def resources(self):
+        if self._resources is not None:
+            return self._resources
+
+        resource_index = self._get_json(self._cdn.cdn + self.index()['default']['resources'])
+        resources = {}
+        for resource in resource_index['resource']:
+            blob = resource['dest'].split('/')[-1]
+            resources[blob] = self._cdn.cdn + self.base_path() + resource['dest']
+        self._resources = resources
+        return resources
+
+    @staticmethod
+    def _get_json(url: str) -> dict:
+        resp = requests.get(url)
+        if resp.status_code != 200:
+            raise Exception(f"Failed to download json {url} - {resp.status_code}")
+        return resp.json()
+
+    def __str__(self):
+        return f"PcStarterSource({self._cdn_name})"
 
 
-def get_primary_blobs() -> Dict[str, str]:
-    logger.info('Getting primary blobs')
-    index = get_json(LAUNCHER_CDN_BASE + f'pcstarter/prod/game/G{HG_GAME_ID}/{HG_GAME_VERSION}/index.json')
-    resource_base_path = index['default']['resourcesBasePath']
-    resources = get_json(LAUNCHER_CDN_BASE + index['default']['resources'])
+@dataclasses.dataclass
+class PatchCdnData:
+    """
+    Settings required to use a patch CDN for a server
+    """
+    cdn: str
+    app_id: str
+    platform: str
 
-    resource_table = {}
-    for resource in resources['resource']:
-        blob = resource['dest'].split('/')[-1]
-        # We don't use the md5 hashes, but they are in resource if we need them
-        resource_table[blob] = LAUNCHER_CDN_BASE + resource_base_path + resource['dest']
+    def config_url(self, version: str):
+        return f'{self.cdn}/client/config/{self.app_id}/{version}/{self.platform}/config.tab'
 
-    return resource_table
-
-
-def get_patch_cdn_url(version: str) -> str:
-    logger.info("Getting config from patch cdn")
-    config = get_tab(KURO_CDN_BASE + f'/client/config/{APP_ID}/{version}/{APP_PLATFORM}/config.tab')
-    application_version = config.loc[config.Key == "ApplicationVersion", "Value"].values[0]
-    document_version = config.loc[config.Key == "DocumentVersion", "Value"].values[0]
-    cdn = config.loc[config.Key == "PrimaryCdns", "Value"].values[0].split('|')[0]
-
-    return '/'.join([
-        cdn, 'client/patch', APP_ID, application_version, APP_PLATFORM, document_version, 'matrix'
-    ])
+    def base_url(self, application_version: str, document_version: str):
+        return '/'.join([
+            self.cdn, 'client/patch', self.app_id, application_version, self.platform, document_version, 'matrix/'
+        ])
 
 
-def resolve_blob(bundle: str, index: Dict[str, Tuple[str, str, int]], launcher_blobs: Dict[str, str],
-                 patch_cdn_base: str) -> str:
-    blobname, _, _ = index[bundle]
-    if blobname in launcher_blobs:
-        logger.info(f"Bundle {bundle} - using launcher blob {blobname}")
-        return launcher_blobs[blobname]
+# CDN base url, app_id, platform From the config tab PrimaryCdn
+# http://prod-encdn-akamai.kurogame.net/prod/client/config/com.kurogame.punishing.grayraven.en.pc/1.28.0/standalone/config.tab
+class PatchCdn(Enum):
+    EN_PC = PatchCdnData('http://prod-encdn-akamai.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en.pc',
+                         'standalone')
 
-    logger.info(f"Bundle {bundle} - using patch blob {blobname}")
-    return patch_cdn_base + '/' + blobname
+
+class PatchCdnSource(Source):
+    _logger = logging.getLogger('PatchCdnSource')
+    _index = None
+    _resources = None
+
+    def __init__(self, cdn: PatchCdn, version: str):
+        self._cdn_name = cdn.name
+        self._cdn = cdn.value
+
+        self._logger.debug("Getting config from patch cdn")
+        config = self.get_tab(self._cdn.config_url(version))
+        application_version = config["ApplicationVersion"]
+        document_version = config["DocumentVersion"]
+        self._cdn_url = self._cdn.base_url(application_version, document_version)
+        self._logger.debug(f"Using patch cdn {self._cdn_url}")
+
+    def has_blob(self, blob: str) -> bool:
+        return blob in self.resources()
+
+    def get_blob(self, blob: str) -> bytes:
+        url = self.resources()[blob]
+        self._logger.debug(f"Downloading blob {blob} ({url})")
+        resp = requests.get(url)
+        if resp.status_code != 200:
+            raise Exception(f"Failed to download blob {blob} - {resp.status_code}")
+        return resp.content
+
+    def bundle_to_blob(self, bundle: str) -> Union[str, None]:
+        return self.index()[bundle][0]
+
+    def resources(self):
+        if self._resources is not None:
+            return self._resources
+
+        resources = {}
+        for bundle, (blob, _, _) in self.index().items():
+            resources[blob] = self._cdn_url + blob
+        self._resources = resources
+        return resources
+
+    def index(self):
+        if self._index is not None:
+            return self._index
+
+        # Index is an asset bundle, containing the msgpack'd index
+        bundle = requests.get(f'{self._cdn_url}index')
+        if bundle.status_code != 200:
+            raise Exception(f"Failed to download patch index - {bundle.status_code}")
+        env = UnityPy.load(bundle.content)
+
+        if 'assets/temp/index.bytes' not in env.container:
+            raise Exception(f"Failed to find index in patch index bundle")
+
+        self._index = msgpack.loads(env.container['assets/temp/index.bytes'].read().script)[0]
+        return self._index
+
+    @staticmethod
+    def get_tab(url: str) -> Dict[str, str]:
+        resp = requests.get(url)
+        if resp.status_code != 200:
+            raise Exception(f"Failed to download raw {url} - {resp.status_code}")
+
+        data = {}
+        for line in resp.text.splitlines(False):
+            key, _, value = line.split('\t')
+            data[key] = value
+
+        return data
+
+    def __str__(self):
+        return f"PatchCdnSource({self._cdn_name} => {self._cdn_url})"
 
 
 def rewrite_text_asset(path: str, data: memoryview) -> Tuple[str, bytearray]:
@@ -134,9 +246,27 @@ def extract_bundle(env: UnityPy.Environment, output_dir: str):
             logger.error(f"Failed to extract {path}: {e}")
 
 
-if __name__ == '__main__':
+def find_bundle(bundle: str, sources: List[Source]) -> bytes:
+    # First we try to resolve bundle -> blob
+    for source in sources:
+        blob = source.bundle_to_blob(bundle)
+        if blob is not None:
+            break
+    else:
+        raise Exception(f"Failed to resolve bundle {bundle}")
+
+    logger.debug(f"Bundle {bundle} -> blob {blob}")
+
+    # Then find the first source that has the blob
+    for source in sources:
+        if source.has_blob(blob):
+            logger.info(f"Downloading blob {blob} from {source}")
+            return source.get_blob(blob)
+    raise Exception(f"Failed to resolve blob {blob}")
+
+
+def main():
     parser = argparse.ArgumentParser(description='Extracts the assets required for kennel')
-    # From the config tab PrimaryCdn, e.g. http://prod-encdn-akamai.kurogame.net/prod/client/config/com.kurogame.punishing.grayraven.en.pc/1.28.0/standalone/config.tab
     parser.add_argument('--version', type=str, help='The client version to use.', required=True)
     parser.add_argument('--output', type=str, help='Output directory to use', required=True)
     parser.add_argument('bundles', nargs='*', help='Bundles to extract')
@@ -146,15 +276,21 @@ if __name__ == '__main__':
         parser.error('No bundles specified')
 
     UnityPy.set_assetbundle_decrypt_key(DECRYPTION_KEY)
-    launcher_blobs = get_primary_blobs()
-    patch_cdn_url = get_patch_cdn_url(args.version)
-    main_index = get_index(patch_cdn_url + '/index')
+
+    patch_source = PatchCdnSource(PatchCdn.EN_PC, args.version)
+    pc_source = PcStarterSource(PcStarterCdn.EN)
+
+    logger.info(f"PC starter version {pc_source.version()}")
+    if args.version != pc_source.version():
+        logger.error(f"Version mismatch. Expected {pc_source.version()}, got {args.version}")
+        sys.exit(1)
 
     for bundle in args.bundles:
-        if bundle not in main_index:
-            parser.error(f"Bundle {bundle} not found in index")
+        bundle_data = find_bundle(bundle, [pc_source, patch_source])
+        env = UnityPy.load(bundle_data)
+        logger.info(f"Extracting {bundle}")
+        extract_bundle(env, output_dir=args.output)
 
-    for bundle in args.bundles:
-        bundle_path = resolve_blob(bundle, main_index, launcher_blobs, patch_cdn_url)
-        logger.info(f"Extracting {bundle_path}")
-        extract_bundle(get_bundle(bundle_path), output_dir=args.output)
+
+if __name__ == '__main__':
+    main()
