@@ -11,7 +11,7 @@ import UnityPy
 import msgpack
 import requests
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('pgr-assets')
 
 DECRYPTION_KEY = 'y5XPvqLOrCokWRIa'
@@ -46,7 +46,8 @@ class PcStarterData:
 
 
 class PcStarterCdn(Enum):
-    EN_PC = PcStarterData('https://prod-awscdn-gamestarter.kurogame.net/', 143, 4)
+    EN_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 143, 4)
+    CN_PC = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/', 148, 10001)
 
 
 class PcStarterSource(Source):
@@ -133,6 +134,8 @@ class PatchCdn(Enum):
     EN_PC = PatchCdnData('http://prod-encdn-akamai.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en.pc',
                          'standalone')
     KR = PatchCdnData('http://prod-krcdn-akamai.punishing.net/prod', 'com.herogame.punishing.grayraven.kr', 'android')
+    # http://prod.zspnsalicdn.yingxiong.com/prod/client/config/com.kurogame.haru.kuro/2.9.0/standalone/config.tab
+    CN_PC = PatchCdnData('http://prod.zspnsalicdn.yingxiong.com/prod', 'com.kurogame.haru.kuro', 'standalone')
 
 
 class PatchCdnSource(Source):
@@ -321,9 +324,9 @@ def get_primary(version: str, primary_type: str, obb: Union[str, None]) -> Sourc
 
     impl_version = impl.version()
     logger.info(f"Primary source {impl} version {impl_version}")
-    if impl_version is not None and version != impl_version:
-        logger.error(f"Primary source version mismatch. Expected {version}, got {impl_version}")
-        sys.exit(1)
+    # if impl_version is not None and version != impl_version:
+    #     logger.error(f"Primary source version mismatch. Expected {version}, got {impl_version}")
+    #     sys.exit(1)
 
     return impl
 
@@ -345,10 +348,10 @@ def get_patch(version: str, patch_type: str) -> Source:
 
 def main():
     parser = argparse.ArgumentParser(description='Extracts the assets required for kennel')
-    parser.add_argument('--primary', type=str, choices=['obb', 'EN_PC'], default='EN_PC')
+    parser.add_argument('--primary', type=str, choices=['obb', 'EN_PC', 'CN_PC'], default='EN_PC')
     parser.add_argument('--obb', type=str, help='Path to obb file. Only valid when --primary is set to obb.')
 
-    parser.add_argument('--patch', type=str, choices=['EN_PC', 'KR'], default='EN_PC')
+    parser.add_argument('--patch', type=str, choices=['EN_PC', 'KR', 'CN_PC'], default='EN_PC')
 
     parser.add_argument('--version', type=str, help='The client version to use.', required=True)
     parser.add_argument('--output', type=str, help='Output directory to use', required=True)
