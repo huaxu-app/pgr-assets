@@ -34,6 +34,10 @@ class Source(object):
         """Returns the version of the source, or None if unknown"""
         raise NotImplementedError()
 
+    def resources(self) -> Dict[str, str]:
+        """Returns a dict of blob -> path"""
+        raise NotImplementedError()
+
 
 @dataclasses.dataclass
 class PcStarterData:
@@ -131,6 +135,7 @@ class PatchCdnData:
 # CDN base url, app_id, platform From the config tab PrimaryCdn
 # http://prod-encdn-akamai.kurogame.net/prod/client/config/com.kurogame.punishing.grayraven.en.pc/1.28.0/standalone/config.tab
 class PatchCdn(Enum):
+    EN = PatchCdnData('http://prod-encdn-akamai.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en', 'android')
     EN_PC = PatchCdnData('http://prod-encdn-akamai.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en.pc',
                          'standalone')
     KR = PatchCdnData('http://prod-krcdn-akamai.punishing.net/prod', 'com.herogame.punishing.grayraven.kr', 'android')
@@ -149,7 +154,7 @@ class PatchCdnSource(Source):
 
         self._logger.debug("Getting config from patch cdn")
         config = self.get_tab(self._cdn.config_url(version))
-        application_version = config["ApplicationVersion"]
+        application_version = config["LaunchModuleVersion"]
         document_version = config["DocumentVersion"]
         self._cdn_url = self._cdn.base_url(application_version, document_version)
         self._logger.debug(f"Using patch cdn {self._cdn_url}")
@@ -350,18 +355,17 @@ def main():
     parser = argparse.ArgumentParser(description='Extracts the assets required for kennel')
     parser.add_argument('--primary', type=str, choices=['obb', 'EN_PC', 'CN_PC'], default='EN_PC')
     parser.add_argument('--obb', type=str, help='Path to obb file. Only valid when --primary is set to obb.')
-
-    parser.add_argument('--patch', type=str, choices=['EN_PC', 'KR', 'CN_PC'], default='EN_PC')
-
+    parser.add_argument('--patch', type=str, choices=['EN', 'EN_PC', 'KR', 'CN_PC'], default='EN_PC')
     parser.add_argument('--version', type=str, help='The client version to use.', required=True)
     parser.add_argument('--output', type=str, help='Output directory to use', required=True)
+    parser.add_argument('--decrypt-key', type=str, help='Decryption key to use', default=DECRYPTION_KEY)
     parser.add_argument('bundles', nargs='*', help='Bundles to extract')
     args = parser.parse_args()
 
     if len(args.bundles) == 0:
         parser.error('No bundles specified')
 
-    UnityPy.set_assetbundle_decrypt_key(DECRYPTION_KEY)
+    UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
 
     primary_source = get_primary(args.version, args.primary, args.obb)
     patch_source = get_patch(args.version, args.patch)
