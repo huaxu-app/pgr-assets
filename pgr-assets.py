@@ -38,6 +38,10 @@ class Source(object):
         """Returns a dict of blob -> path"""
         raise NotImplementedError()
 
+    def bundle_names(self) -> List[str]:
+        """Returns a list of all bundle names"""
+        return NotImplementedError()
+
 
 @dataclasses.dataclass
 class PcStarterData:
@@ -103,6 +107,9 @@ class PcStarterSource(Source):
         self._resources = resources
         return resources
 
+    def bundle_names(self):
+        return self.index().keys()
+
     @staticmethod
     def _get_json(url: str) -> dict:
         resp = requests.get(url)
@@ -154,7 +161,7 @@ class PatchCdnSource(Source):
 
         self._logger.debug("Getting config from patch cdn")
         config = self.get_tab(self._cdn.config_url(version))
-        application_version = config["LaunchModuleVersion"]
+        application_version = config["ApplicationVersion"]
         document_version = config["DocumentVersion"]
         self._cdn_url = self._cdn.base_url(application_version, document_version)
         self._logger.debug(f"Using patch cdn {self._cdn_url}")
@@ -172,7 +179,10 @@ class PatchCdnSource(Source):
         return resp.content
 
     def bundle_to_blob(self, bundle: str) -> Union[str, None]:
-        return self.index()[bundle][0]
+        try:
+            return self.index()[bundle][0]
+        except KeyError:
+            return None
 
     def resources(self):
         if self._resources is not None:
@@ -184,7 +194,7 @@ class PatchCdnSource(Source):
         self._resources = resources
         return resources
 
-    def index(self):
+    def index(self) -> Dict[str, Tuple[str, int, int]]:
         if self._index is not None:
             return self._index
 
@@ -202,6 +212,9 @@ class PatchCdnSource(Source):
 
     def version(self) -> Union[str, None]:
         return self._version
+
+    def bundle_names(self):
+        return self.index().keys()
 
     @staticmethod
     def get_tab(url: str) -> Dict[str, str]:
@@ -222,6 +235,7 @@ class PatchCdnSource(Source):
 
 class ObbSource(Source):
     _resources = None
+    _index = None
 
     def __init__(self, obb: str):
         self._obb = ZipFile(obb, 'r')
@@ -233,11 +247,27 @@ class ObbSource(Source):
         return self._obb.read(self.resources()[blob])
 
     def bundle_to_blob(self, bundle: str) -> Union[str, None]:
-        # This can't resolve bundles to blobs
-        return None
+        try:
+            return self.index()[bundle][0]
+        except KeyError:
+            return None
 
     def version(self) -> Union[str, None]:
         return None
+
+    def index(self) -> Dict[str, Tuple[str, int, int]]:
+        if self._index is not None:
+            return self._index
+
+        # msgpack.loads(UnityPy.load(primary_source.get_blob('index')).container['assets/buildtemp/index.bytes'].read().script)[0]
+        index_blob = self._obb.read('assets/resource/matrix/index')
+        env = UnityPy.load(index_blob)
+
+        if 'assets/buildtemp/index.bytes' not in env.container:
+            raise Exception(f"Invalid OBB index bundle")
+
+        self._index = msgpack.loads(env.container['assets/buildtemp/index.bytes'].read().script)[0]
+        return self._index
 
     def resources(self) -> Dict[str, str]:
         if self._resources is not None:
@@ -246,9 +276,42 @@ class ObbSource(Source):
         self._resources = {f.filename.split('/')[-1]: f.filename for f in self._obb.filelist if 'matrix' in f.filename}
         return self._resources
 
+    def bundle_names(self):
+        return self.index().keys()
+
     def __str__(self):
         return f"ObbSource({self._obb.filename})"
 
+
+def decrypt(content, offset=None, count=None):
+    XCryptoKey = bytearray([103, 40, 227, 236, 173, 175, 148, 243, 66, 252, 58, 22, 68, 192, 159, 15, 187, 15, 15, 29, 209, 209, 212, 66, 104, 16, 252, 194, 227, 14, 116, 112, 196, 221, 5, 1, 4, 173, 165, 69, 45, 193, 95, 10, 67, 38, 167, 239, 96, 184, 133, 75, 152, 196, 36, 121, 251, 7, 73, 82, 219, 25, 118, 70, 153, 232, 120, 120, 147, 10, 88, 106, 214, 187, 216, 49, 224, 57, 1, 233, 110, 40, 65, 85, 246, 197, 4, 20, 56, 74, 245, 41, 63, 169, 188, 104, 89, 49, 115, 254, 100, 77, 79, 11, 148, 242, 95, 88, 241, 111, 48, 130, 169, 200, 224, 135, 121, 161, 72, 84, 5, 100, 135, 70, 141, 94, 244, 114, 58, 28, 87, 181, 205, 221, 154, 184, 197, 98, 210, 202, 252, 124, 144, 9, 112, 163, 24, 254, 119, 188, 5, 230, 40, 79, 171, 17, 156, 212, 134, 41, 79, 134, 26, 251, 123, 219, 191, 136, 21, 84, 192, 91, 24, 33, 68, 101, 85, 61, 186, 215, 191, 37, 45, 51, 117, 227, 14, 145, 56, 43, 32, 67, 48, 98, 192, 41, 136, 223, 50, 163, 97, 251, 174, 59, 59, 147, 237, 177, 31, 159, 52, 243, 245, 247, 148, 139, 21, 92, 139, 80, 47, 4, 105, 59, 227, 220, 180, 231, 176, 187, 205, 203, 148, 121, 98, 90, 87, 131, 245, 3, 63, 239, 57, 117, 102, 134, 40, 172, 60, 128, 108, 102, 216, 247, 133, 102])
+    content = content.copy()
+    if offset is None:
+        offset = 0
+    if count is None:
+        count = len(content)
+    if len(content) < offset + count:
+        raise Exception("Invalid offset+count")
+
+    # One specific byte from the key is chosen to xor with everything? Why?
+    num = count % len(XCryptoKey)
+    for i in reversed(range(count)):
+        # i loops backwards, calculate actual index based on offset param
+        num2 = i + offset
+        # num3 is actual byte
+        num3 = content[num2]
+        # Ok... (next byte or 0 if out of bounds) + number of bytes % 8, why?
+        num4 = ((content[num2 + 1] if i + 1 < count else 0) + count) % 8
+        num3 = num3 >> 8 - num4 | num3 << num4
+        num3 ^= XCryptoKey[i % len(XCryptoKey)]
+
+        if num2 > offset:
+            num3 ^= content[num2 - 1]
+
+        num3 ^= XCryptoKey[num]
+        content[num2] = num3 & 0xFF
+
+    return content
 
 def rewrite_text_asset(path: str, data: memoryview) -> Tuple[str, bytearray]:
     # RSA signature can fuck itself
@@ -265,7 +328,7 @@ def rewrite_text_asset(path: str, data: memoryview) -> Tuple[str, bytearray]:
     ext = os.path.splitext(path)[1]
 
     if ext == ".lua":
-        logger.warning('Extracting lua files is unsupported atm')
+        return path, decrypt(data)
 
     return path, data
 
@@ -298,8 +361,8 @@ def extract_bundle(env: UnityPy.Environment, output_dir: str):
 
 
 def find_bundle(bundle: str, sources: List[Source]) -> bytes:
-    # First we try to resolve bundle -> blob
-    for source in sources:
+    # First we try to resolve bundle -> blob, but use the last source that has it
+    for source in reversed(sources):
         blob = source.bundle_to_blob(bundle)
         if blob is not None:
             break
@@ -312,7 +375,10 @@ def find_bundle(bundle: str, sources: List[Source]) -> bytes:
     for source in sources:
         if source.has_blob(blob):
             logger.info(f"Downloading blob {blob} from {source}")
-            return source.get_blob(blob)
+            try:
+                return source.get_blob(blob)
+            except Exception as e:
+                logger.error(f"Failed to get blob {blob} from {source}: {e}")
     raise Exception(f"Failed to resolve blob {blob}")
 
 
@@ -344,11 +410,15 @@ def get_patch(version: str, patch_type: str) -> Source:
 
     impl_version = impl.version()
     logger.info(f"Patch source {patch_type} version {impl_version}")
-    if impl_version is not None and version != impl_version:
-        logger.error(f"Patch source version mismatch. Expected {version}, got {impl_version}")
-        sys.exit(1)
+    # if impl_version is not None and version != impl_version:
+    #    logger.error(f"Patch source version mismatch. Expected {version}, got {impl_version}")
+    #    sys.exit(1)
 
     return impl
+
+
+def list_all_bundles(sources: List[Source]):
+    return set(bundle for source in sources for bundle in source.bundle_names())
 
 
 def main():
@@ -359,16 +429,23 @@ def main():
     parser.add_argument('--version', type=str, help='The client version to use.', required=True)
     parser.add_argument('--output', type=str, help='Output directory to use', required=True)
     parser.add_argument('--decrypt-key', type=str, help='Decryption key to use', default=DECRYPTION_KEY)
+    parser.add_argument('--list', action='store_true', help='List all available bundles')
     parser.add_argument('bundles', nargs='*', help='Bundles to extract')
     args = parser.parse_args()
 
-    if len(args.bundles) == 0:
+    if len(args.bundles) == 0 and not (args.list):
         parser.error('No bundles specified')
 
     UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
 
     primary_source = get_primary(args.version, args.primary, args.obb)
     patch_source = get_patch(args.version, args.patch)
+
+    if args.list:
+        print("Available bundles:")
+        for bundle in list_all_bundles([primary_source, patch_source]):
+            print(f" - {bundle}")
+        sys.exit(0)
 
     for bundle in args.bundles:
         bundle_data = find_bundle(bundle, [primary_source, patch_source])
