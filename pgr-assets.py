@@ -92,6 +92,9 @@ class PcStarterSource(Source):
     def base_path(self):
         return self.index()['default']['resourcesBasePath']
 
+    def blob_cdn_url(self):
+        return self.index()['default']['cdnList'][0]['url']
+
     def bundle_to_blob(self, bundle: str) -> Union[str, None]:
         return None
 
@@ -99,11 +102,13 @@ class PcStarterSource(Source):
         if self._resources is not None:
             return self._resources
 
-        resource_index = self._get_json(self._cdn.cdn + self.index()['default']['resources'])
+        blob_base = self.blob_cdn_url()
+
+        resource_index = self._get_json(blob_base + self.index()['default']['resources'])
         resources = {}
         for resource in resource_index['resource']:
             blob = resource['dest'].split('/')[-1]
-            resources[blob] = self._cdn.cdn + self.base_path() + resource['dest']
+            resources[blob] = blob_base + self.base_path() + resource['dest']
         self._resources = resources
         return resources
 
