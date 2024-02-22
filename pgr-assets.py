@@ -318,9 +318,18 @@ def decrypt(content, offset=None, count=None):
 
     return content
 
+
+def is_utf8(data: memoryview) -> bool:
+    try:
+        data.tobytes().decode('utf-8')
+        return True
+    except UnicodeDecodeError:
+        return False
+
 def rewrite_text_asset(path: str, data: memoryview) -> Tuple[str, bytearray]:
-    # RSA signature can fuck itself
-    data = bytearray(data[128:])
+    if len(data) > 128 and not is_utf8(data):
+        # RSA signature can fuck itself
+        data = bytearray(data[128:])
 
     # Almost all files end with .bytes
     # If it doesn't, we'll keep it as it is,
