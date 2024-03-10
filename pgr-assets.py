@@ -1,15 +1,10 @@
-import dataclasses
-import os
 import argparse
 import logging
 import sys
-from enum import Enum
-from typing import Dict, Tuple, Union, List
-from zipfile import ZipFile
-
 import UnityPy
-import msgpack
-import requests
+
+import extractors
+from sources import SourceSet
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger('pgr-assets')
@@ -17,422 +12,11 @@ logger = logging.getLogger('pgr-assets')
 DECRYPTION_KEY = 'y5XPvqLOrCokWRIa'
 
 
-class Source(object):
-    def has_blob(self, path: str) -> bool:
-        """Returns true if the source has the blob at the given path"""
-        raise NotImplementedError()
-
-    def get_blob(self, path: str) -> bytes:
-        """Returns the blob at the given path as binary data"""
-        raise NotImplementedError()
-
-    def bundle_to_blob(self, bundle: str) -> Union[str, None]:
-        """Returns the blob that contains the bundle, or None if unknown"""
-        raise NotImplementedError()
-
-    def version(self) -> Union[str, None]:
-        """Returns the version of the source, or None if unknown"""
-        raise NotImplementedError()
-
-    def resources(self) -> Dict[str, str]:
-        """Returns a dict of blob -> path"""
-        raise NotImplementedError()
-
-    def bundle_names(self) -> List[str]:
-        """Returns a list of all bundle names"""
-        return NotImplementedError()
-
-
-@dataclasses.dataclass
-class PcStarterData:
-    cdn: str
-    game_id: int
-    iteration: int
-
-    def index_url(self):
-        return f'{self.cdn}pcstarter/prod/game/G{self.game_id}/{self.iteration}/index.json'
-
-
-class PcStarterCdn(Enum):
-    EN_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 143, 4)
-    CN_PC = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/', 148, 10001)
-
-
-class PcStarterSource(Source):
-    _logger = logging.getLogger('PcStarterSource')
-    _index = None
-    _resources = None
-
-    def __init__(self, cdn: PcStarterCdn):
-        self._cdn_name = cdn.name
-        self._cdn = cdn.value
-
-    def index(self):
-        if self._index is not None:
-            return self._index
-
-        self._logger.debug("Getting index from launcher cdn")
-        self._index = self._get_json(self._cdn.index_url())
-        return self._index
-
-    def has_blob(self, blob: str) -> bool:
-        return blob in self.resources()
-
-    def get_blob(self, blob: str) -> bytes:
-        url = self.resources()[blob]
-        self._logger.debug(f"Downloading blob {blob} ({url})")
-        resp = requests.get(url)
-        if resp.status_code != 200:
-            raise Exception(f"Failed to download blob {blob} - {resp.status_code}")
-        return resp.content
-
-    def version(self) -> Union[str, None]:
-        return self.index()['default']['version']
-
-    def base_path(self):
-        return self.index()['default']['resourcesBasePath']
-
-    def blob_cdn_url(self):
-        return self.index()['default']['cdnList'][0]['url']
-
-    def bundle_to_blob(self, bundle: str) -> Union[str, None]:
-        return None
-
-    def resources(self):
-        if self._resources is not None:
-            return self._resources
-
-        blob_base = self.blob_cdn_url()
-
-        resource_index = self._get_json(blob_base + self.index()['default']['resources'])
-        resources = {}
-        for resource in resource_index['resource']:
-            blob = resource['dest'].split('/')[-1]
-            resources[blob] = blob_base + self.base_path() + resource['dest']
-        self._resources = resources
-        return resources
-
-    def bundle_names(self):
-        return self.index().keys()
-
-    @staticmethod
-    def _get_json(url: str) -> dict:
-        resp = requests.get(url)
-        if resp.status_code != 200:
-            raise Exception(f"Failed to download json {url} - {resp.status_code}")
-        return resp.json()
-
-    def __str__(self):
-        return f"PcStarterSource({self._cdn_name})"
-
-
-@dataclasses.dataclass
-class PatchCdnData:
-    """
-    Settings required to use a patch CDN for a server
-    """
-    cdn: str
-    app_id: str
-    platform: str
-
-    def config_url(self, version: str):
-        return f'{self.cdn}/client/config/{self.app_id}/{version}/{self.platform}/config.tab'
-
-    def base_url(self, application_version: str, document_version: str):
-        return '/'.join([
-            self.cdn, 'client/patch', self.app_id, application_version, self.platform, document_version, 'matrix/'
-        ])
-
-
-# CDN base url, app_id, platform From the config tab PrimaryCdn
-# http://prod-encdn-akamai.kurogame.net/prod/client/config/com.kurogame.punishing.grayraven.en.pc/1.28.0/standalone/config.tab
-class PatchCdn(Enum):
-    EN = PatchCdnData('http://prod-encdn-akamai.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en', 'android')
-    EN_PC = PatchCdnData('http://prod-encdn-akamai.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en.pc',
-                         'standalone')
-    KR = PatchCdnData('http://prod-krcdn-akamai.punishing.net/prod', 'com.herogame.punishing.grayraven.kr', 'android')
-    # http://prod.zspnsalicdn.yingxiong.com/prod/client/config/com.kurogame.haru.kuro/2.9.0/standalone/config.tab
-    CN_PC = PatchCdnData('http://prod.zspnsalicdn.yingxiong.com/prod', 'com.kurogame.haru.kuro', 'standalone')
-
-
-class PatchCdnSource(Source):
-    _logger = logging.getLogger('PatchCdnSource')
-    _index = None
-    _resources = None
-
-    def __init__(self, cdn: PatchCdn, version: str):
-        self._cdn_name = cdn.name
-        self._cdn = cdn.value
-
-        self._logger.debug("Getting config from patch cdn")
-        config = self.get_tab(self._cdn.config_url(version))
-        application_version = config["ApplicationVersion"]
-        document_version = config["DocumentVersion"]
-        self._cdn_url = self._cdn.base_url(application_version, document_version)
-        self._logger.debug(f"Using patch cdn {self._cdn_url}")
-        self._version = application_version
-
-    def has_blob(self, blob: str) -> bool:
-        return blob in self.resources()
-
-    def get_blob(self, blob: str) -> bytes:
-        url = self.resources()[blob]
-        self._logger.debug(f"Downloading blob {blob} ({url})")
-        resp = requests.get(url)
-        if resp.status_code != 200:
-            raise Exception(f"Failed to download blob {blob} - {resp.status_code}")
-        return resp.content
-
-    def bundle_to_blob(self, bundle: str) -> Union[str, None]:
-        try:
-            return self.index()[bundle][0]
-        except KeyError:
-            return None
-
-    def resources(self):
-        if self._resources is not None:
-            return self._resources
-
-        resources = {}
-        for bundle, (blob, _, _) in self.index().items():
-            resources[blob] = self._cdn_url + blob
-        self._resources = resources
-        return resources
-
-    def index(self) -> Dict[str, Tuple[str, int, int]]:
-        if self._index is not None:
-            return self._index
-
-        # Index is an asset bundle, containing the msgpack'd index
-        bundle = requests.get(f'{self._cdn_url}index')
-        if bundle.status_code != 200:
-            raise Exception(f"Failed to download patch index - {bundle.status_code}")
-        env = UnityPy.load(bundle.content)
-
-        if 'assets/temp/index.bytes' not in env.container:
-            raise Exception(f"Failed to find index in patch index bundle")
-
-        self._index = msgpack.loads(env.container['assets/temp/index.bytes'].read().script)[0]
-        return self._index
-
-    def version(self) -> Union[str, None]:
-        return self._version
-
-    def bundle_names(self):
-        return self.index().keys()
-
-    @staticmethod
-    def get_tab(url: str) -> Dict[str, str]:
-        resp = requests.get(url)
-        if resp.status_code != 200:
-            raise Exception(f"Failed to download raw {url} - {resp.status_code}")
-
-        data = {}
-        for line in resp.text.splitlines(False):
-            key, _, value = line.split('\t')
-            data[key] = value
-
-        return data
-
-    def __str__(self):
-        return f"PatchCdnSource({self._cdn_name})"
-
-
-class ObbSource(Source):
-    _resources = None
-    _index = None
-
-    def __init__(self, obb: str):
-        self._obb = ZipFile(obb, 'r')
-
-    def has_blob(self, blob: str) -> bool:
-        return blob in self.resources()
-
-    def get_blob(self, blob: str) -> bytes:
-        return self._obb.read(self.resources()[blob])
-
-    def bundle_to_blob(self, bundle: str) -> Union[str, None]:
-        try:
-            return self.index()[bundle][0]
-        except KeyError:
-            return None
-
-    def version(self) -> Union[str, None]:
-        return None
-
-    def index(self) -> Dict[str, Tuple[str, int, int]]:
-        if self._index is not None:
-            return self._index
-
-        # msgpack.loads(UnityPy.load(primary_source.get_blob('index')).container['assets/buildtemp/index.bytes'].read().script)[0]
-        index_blob = self._obb.read('assets/resource/matrix/index')
-        env = UnityPy.load(index_blob)
-
-        if 'assets/buildtemp/index.bytes' not in env.container:
-            raise Exception(f"Invalid OBB index bundle")
-
-        self._index = msgpack.loads(env.container['assets/buildtemp/index.bytes'].read().script)[0]
-        return self._index
-
-    def resources(self) -> Dict[str, str]:
-        if self._resources is not None:
-            return self._resources
-
-        self._resources = {f.filename.split('/')[-1]: f.filename for f in self._obb.filelist if 'matrix' in f.filename}
-        return self._resources
-
-    def bundle_names(self):
-        return self.index().keys()
-
-    def __str__(self):
-        return f"ObbSource({self._obb.filename})"
-
-
-def decrypt(content, offset=None, count=None):
-    XCryptoKey = bytearray([103, 40, 227, 236, 173, 175, 148, 243, 66, 252, 58, 22, 68, 192, 159, 15, 187, 15, 15, 29, 209, 209, 212, 66, 104, 16, 252, 194, 227, 14, 116, 112, 196, 221, 5, 1, 4, 173, 165, 69, 45, 193, 95, 10, 67, 38, 167, 239, 96, 184, 133, 75, 152, 196, 36, 121, 251, 7, 73, 82, 219, 25, 118, 70, 153, 232, 120, 120, 147, 10, 88, 106, 214, 187, 216, 49, 224, 57, 1, 233, 110, 40, 65, 85, 246, 197, 4, 20, 56, 74, 245, 41, 63, 169, 188, 104, 89, 49, 115, 254, 100, 77, 79, 11, 148, 242, 95, 88, 241, 111, 48, 130, 169, 200, 224, 135, 121, 161, 72, 84, 5, 100, 135, 70, 141, 94, 244, 114, 58, 28, 87, 181, 205, 221, 154, 184, 197, 98, 210, 202, 252, 124, 144, 9, 112, 163, 24, 254, 119, 188, 5, 230, 40, 79, 171, 17, 156, 212, 134, 41, 79, 134, 26, 251, 123, 219, 191, 136, 21, 84, 192, 91, 24, 33, 68, 101, 85, 61, 186, 215, 191, 37, 45, 51, 117, 227, 14, 145, 56, 43, 32, 67, 48, 98, 192, 41, 136, 223, 50, 163, 97, 251, 174, 59, 59, 147, 237, 177, 31, 159, 52, 243, 245, 247, 148, 139, 21, 92, 139, 80, 47, 4, 105, 59, 227, 220, 180, 231, 176, 187, 205, 203, 148, 121, 98, 90, 87, 131, 245, 3, 63, 239, 57, 117, 102, 134, 40, 172, 60, 128, 108, 102, 216, 247, 133, 102])
-    content = content.copy()
-    if offset is None:
-        offset = 0
-    if count is None:
-        count = len(content)
-    if len(content) < offset + count:
-        raise Exception("Invalid offset+count")
-
-    # One specific byte from the key is chosen to xor with everything? Why?
-    num = count % len(XCryptoKey)
-    for i in reversed(range(count)):
-        # i loops backwards, calculate actual index based on offset param
-        num2 = i + offset
-        # num3 is actual byte
-        num3 = content[num2]
-        # Ok... (next byte or 0 if out of bounds) + number of bytes % 8, why?
-        num4 = ((content[num2 + 1] if i + 1 < count else 0) + count) % 8
-        num3 = num3 >> 8 - num4 | num3 << num4
-        num3 ^= XCryptoKey[i % len(XCryptoKey)]
-
-        if num2 > offset:
-            num3 ^= content[num2 - 1]
-
-        num3 ^= XCryptoKey[num]
-        content[num2] = num3 & 0xFF
-
-    return content
-
-
-def is_utf8(data: memoryview) -> bool:
-    try:
-        data.tobytes().decode('utf-8')
-        return True
-    except UnicodeDecodeError:
-        return False
-
-def rewrite_text_asset(path: str, data: memoryview) -> Tuple[str, bytearray]:
-    if len(data) > 128 and not is_utf8(data):
-        # RSA signature can fuck itself
-        data = bytearray(data[128:])
-
-    # Almost all files end with .bytes
-    # If it doesn't, we'll keep it as it is,
-    # otherwise we drop the '.bytes' extension
-    path_without_bytes, ext = os.path.splitext(path)
-    if ext != ".bytes":
-        return path, data
-
-    path = path_without_bytes
-    ext = os.path.splitext(path)[1]
-
-    if ext == ".lua":
-        return path, decrypt(data)
-
-    return path, data
-
-
-def extract_bundle(env: UnityPy.Environment, output_dir: str):
-    for path, obj in env.container.items():
-        dest = os.path.join(output_dir, *path.split("/"))
-        # create dest based on original path
-        # make sure that the dir of that path exists
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
-
-        try:
-            if obj.type.name in ["Texture2D", "Sprite"]:
-                data = obj.read()
-                # correct extension
-                dest, ext = os.path.splitext(dest)
-                dest = dest + ".png"
-                data.image.save(dest)
-                logger.debug(f"Extracted {path}")
-            elif obj.type.name == "TextAsset":
-                data = obj.read()
-                dest, data = rewrite_text_asset(dest, data.script)
-                with open(dest, "wb") as f:
-                    f.write(data)
-                logger.debug(f"Extracted {path}")
-            else:
-                logger.warning(f"Unsupported type {obj.type.name} for {path}")
-        except Exception as e:
-            logger.error(f"Failed to extract {path}: {e}")
-
-
-def find_bundle(bundle: str, sources: List[Source]) -> bytes:
-    # First we try to resolve bundle -> blob, but use the last source that has it
-    for source in reversed(sources):
-        blob = source.bundle_to_blob(bundle)
-        if blob is not None:
-            break
-    else:
-        raise Exception(f"Failed to resolve bundle {bundle}")
-
-    logger.debug(f"Bundle {bundle} -> blob {blob}")
-
-    # Then find the first source that has the blob
-    for source in sources:
-        if source.has_blob(blob):
-            logger.info(f"Downloading blob {blob} from {source}")
-            try:
-                return source.get_blob(blob)
-            except Exception as e:
-                logger.error(f"Failed to get blob {blob} from {source}: {e}")
-    raise Exception(f"Failed to resolve blob {blob}")
-
-
-def get_primary(version: str, primary_type: str, obb: Union[str, None]) -> Source:
-    impl = None
-
-    if primary_type == 'obb':
-        impl = ObbSource(obb)
-    elif primary_type in PcStarterCdn.__members__:
-        impl = PcStarterSource(PcStarterCdn[primary_type])
-
-    if impl is None:
-        raise Exception(f"Unknown primary type {primary_type}")
-
-    impl_version = impl.version()
-    logger.info(f"Primary source {impl} version {impl_version}")
-    # if impl_version is not None and version != impl_version:
-    #     logger.error(f"Primary source version mismatch. Expected {version}, got {impl_version}")
-    #     sys.exit(1)
-
-    return impl
-
-
-def get_patch(version: str, patch_type: str) -> Source:
-    if patch_type not in PatchCdn.__members__:
-        raise Exception(f"Unknown patch type {patch_type}")
-
-    impl = PatchCdnSource(PatchCdn[patch_type], version)
-
-    impl_version = impl.version()
-    logger.info(f"Patch source {patch_type} version {impl_version}")
-    # if impl_version is not None and version != impl_version:
-    #    logger.error(f"Patch source version mismatch. Expected {version}, got {impl_version}")
-    #    sys.exit(1)
-
-    return impl
-
-
-def list_all_bundles(sources: List[Source]):
-    return set(bundle for source in sources for bundle in source.bundle_names())
+def process_bundle(bundle: str, sources: SourceSet, output_dir: str):
+    bundle_data = sources.find_bundle(bundle)
+    env = UnityPy.load(bundle_data)
+    logger.info(f"Extracting {bundle}")
+    extractors.extract_bundle(env, output_dir=output_dir)
 
 
 def main():
@@ -447,25 +31,27 @@ def main():
     parser.add_argument('bundles', nargs='*', help='Bundles to extract')
     args = parser.parse_args()
 
-    if len(args.bundles) == 0 and not (args.list):
+    if len(args.bundles) == 0 and not args.list:
         parser.error('No bundles specified')
 
     UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
 
-    primary_source = get_primary(args.version, args.primary, args.obb)
-    patch_source = get_patch(args.version, args.patch)
+    ss = SourceSet()
+    ss.add_primary(args.version, args.primary, args.obb)
+    ss.add_patch(args.patch, args.version)
 
     if args.list:
         print("Available bundles:")
-        for bundle in list_all_bundles([primary_source, patch_source]):
+        for bundle in ss.list_all_bundles():
             print(f" - {bundle}")
         sys.exit(0)
 
     for bundle in args.bundles:
-        bundle_data = find_bundle(bundle, [primary_source, patch_source])
-        env = UnityPy.load(bundle_data)
-        logger.info(f"Extracting {bundle}")
-        extract_bundle(env, output_dir=args.output)
+        if bundle.endswith('.ab'):
+            process_bundle(bundle, ss, args.output)
+        elif bundle.endswith('.awb'):
+            pass
+            # process_audio(bundle, [primary_source, patch_source], args.output)
 
 
 if __name__ == '__main__':
