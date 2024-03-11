@@ -31,8 +31,8 @@ class PatchCdnData:
 # CDN base url, app_id, platform From the config tab PrimaryCdn
 # http://prod-encdn-akamai.kurogame.net/prod/client/config/com.kurogame.punishing.grayraven.en.pc/1.28.0/standalone/config.tab
 class PatchCdn(Enum):
-    EN = PatchCdnData('http://prod-encdn-akamai.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en', 'android')
-    EN_PC = PatchCdnData('http://prod-encdn-akamai.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en.pc',
+    EN = PatchCdnData('http://prod-encdn-volcdn.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en', 'android')
+    EN_PC = PatchCdnData('http://prod-encdn-volcdn.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en.pc',
                          'standalone')
     KR = PatchCdnData('http://prod-krcdn-akamai.punishing.net/prod', 'com.herogame.punishing.grayraven.kr', 'android')
     # http://prod.zspnsalicdn.yingxiong.com/prod/client/config/com.kurogame.haru.kuro/2.9.0/standalone/config.tab
