@@ -43,13 +43,24 @@ class SourceSet:
     def list_all_bundles(self):
         return set(bundle for source in self.sources for bundle in source.bundle_names())
 
-    def find_bundle(self, bundle):
-        # First we try to resolve bundle -> blob, but use the last source that has it
-        for source in reversed(self.sources):
+    def bundle_to_blob(self, bundle):
+        for source in self.sources:
             blob = source.bundle_to_blob(bundle)
             if blob is not None:
-                break
-        else:
+                return blob
+        return None
+
+    def bundle_sha1(self, bundle):
+        for source in self.sources:
+            sha1 = source.bundle_sha1(bundle)
+            if sha1 is not None:
+                return sha1
+        return None
+
+    def find_bundle(self, bundle):
+        blob = self.bundle_to_blob(bundle)
+        # First we try to resolve bundle -> blob, but use the last source that has it
+        if blob is None:
             raise Exception(f"Failed to resolve bundle {bundle}")
 
         logger.debug(f"Bundle {bundle} -> blob {blob}")
@@ -57,7 +68,7 @@ class SourceSet:
         # Then find the first source that has the blob
         for source in self.sources:
             if source.has_blob(blob):
-                logger.info(f"Downloading blob {blob} from {source}")
+                logger.debug(f"Downloading blob {blob} from {source}")
                 try:
                     return source.get_blob(blob)
                 except Exception as e:

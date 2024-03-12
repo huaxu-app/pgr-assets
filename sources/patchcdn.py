@@ -73,6 +73,12 @@ class PatchCdnSource(Source):
         except KeyError:
             return None
 
+    def bundle_sha1(self, bundle: str) -> Union[str, None]:
+        try:
+            return self.index()[bundle][1]
+        except KeyError:
+            return None
+
     def resources(self):
         if self._resources is not None:
             return self._resources
@@ -83,7 +89,7 @@ class PatchCdnSource(Source):
         self._resources = resources
         return resources
 
-    def index(self) -> Dict[str, Tuple[str, int, int]]:
+    def index(self) -> Dict[str, Tuple[str, str, int]]:
         if self._index is not None:
             return self._index
 

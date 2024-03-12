@@ -6,3 +6,7 @@ python-ffmpeg
 pyinstaller
 
 PyCriCodecs @ git+https://github.com/BlackNovaTech/PyCriCodecs@main
+
+PyCriCodecs~=0.4.5
+tqdm~=4.66.1
+pillow~=10.2.0

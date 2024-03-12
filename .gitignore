@@ -2,3 +2,5 @@
 .envrc
 dist/
 build/
+.cache.json
+pgrtemp/

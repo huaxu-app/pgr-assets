@@ -63,6 +63,9 @@ class PcStarterSource(Source):
     def bundle_to_blob(self, bundle: str) -> Union[str, None]:
         return None
 
+    def bundle_sha1(self, bundle: str) -> Union[str, None]:
+        return None
+
     def resources(self):
         if self._resources is not None:
             return self._resources

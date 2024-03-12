@@ -10,6 +10,10 @@ class Source(object):
         """Returns the blob at the given path as binary data"""
         raise NotImplementedError()
 
+    def bundle_sha1(self, path: str) -> Union[str, None]:
+        """Returns the sha1 of the given blob"""
+        raise NotImplementedError()
+
     def bundle_to_blob(self, bundle: str) -> Union[str, None]:
         """Returns the blob that contains the bundle, or None if unknown"""
         raise NotImplementedError()

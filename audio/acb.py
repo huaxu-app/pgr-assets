@@ -4,6 +4,7 @@ import os
 import struct
 
 from PyCriCodecs import UTF, AWB, UTFTypeValues, UTFType, HCA
+from ffmpeg import FFmpeg
 
 logger = logging.getLogger('audio.acb')
 
@@ -46,7 +47,7 @@ class ACB(UTF):
         waveform_reference = self.payload[0]['SynthTable'][synth_idx]['ReferenceItems'][1]
         return struct.unpack('>H', waveform_reference[2:])[0]
 
-    def extract(self, decode: bool = False, key: int = 0, dirname: str = ""):
+    def extract(self, key: int, dirname: str = "", encode=False):
         """ Extracts audio files in an AWB/ACB without preserving filenames. """
         if dirname:
             os.makedirs(dirname, exist_ok=True)
@@ -55,19 +56,25 @@ class ACB(UTF):
         waveforms = list(self.awb.getfiles())
 
         for cue_name_entry in self.payload[0]['CueNameTable']:
-            cue_name = cue_name_entry['CueName'][1]
+            cue_name = str(cue_name_entry['CueName'][1]).lower()
             cue_idx = cue_name_entry['CueIndex'][1]
             try:
                 waveform_reference_idx = self.get_waveform_for_cue_idx(cue_idx)
 
-                ext = self.get_extension(self.payload[0]['WaveformTable'][waveform_reference_idx]['EncodeType'][1])
                 data = waveforms[waveform_reference_idx]
+                audio = HCA(data, key=key, subkey=self.awb.subkey).decode()
 
-                if decode and ext == ".hca":
-                    hca = HCA(data, key=key, subkey=self.awb.subkey).decode()
-                    open(os.path.join(dirname, str(cue_name) + ".wav"), "wb").write(hca)
+                if encode:
+                    ffmpeg = (FFmpeg()
+                              .option('y')
+                              .option('hwaccel', 'auto')
+                              .input('pipe:0')
+                              .output(os.path.join(dirname, cue_name + ".mp3"), {'c:a': 'libmp3lame', 'q:a': 2})
+                              )
+
+                    ffmpeg.execute(audio)
                 else:
-                    open(os.path.join(dirname, f"{cue_name}{ext}"), "wb").write(data)
+                    open(os.path.join(dirname, str(cue_name) + ".wav"), "wb").write(audio)
             except IndexError:
                 logger.warning(f"Failed to extract {cue_name} with index {cue_idx}: waveform index out of range")
 

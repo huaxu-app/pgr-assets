@@ -26,10 +26,16 @@ class ObbSource(Source):
         except KeyError:
             return None
 
+    def bundle_sha1(self, bundle: str) -> Union[str, None]:
+        try:
+            return self.index()[bundle][1]
+        except KeyError:
+            return None
+
     def version(self) -> Union[str, None]:
         return None
 
-    def index(self) -> Dict[str, Tuple[str, int, int]]:
+    def index(self) -> Dict[str, Tuple[str, str, int]]:
         if self._index is not None:
             return self._index
 
