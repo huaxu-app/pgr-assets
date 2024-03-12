@@ -34,6 +34,13 @@ def process_audio(bundle: str, sources: SourceSet, cues: CueRegistry, output_dir
     acb.extract(decode=True, key=AUDIO_KEY, dirname=os.path.join(output_dir, cue_sheet.base_name))
 
 
+def process_usm(bundle: str, sources: SourceSet, output_dir: str):
+    filename = os.path.splitext(bundle)[0] + '.mp4'
+    data = sources.find_bundle(bundle)
+    usm = extractors.PGRUSM(data, key=AUDIO_KEY)
+    usm.extract_video(os.path.join(output_dir, filename))
+
+
 def main():
     parser = argparse.ArgumentParser(description='Extracts the assets required for kennel')
     parser.add_argument('--primary', type=str, choices=['obb', 'EN_PC', 'CN_PC'], default='EN_PC')
@@ -44,10 +51,11 @@ def main():
     parser.add_argument('--decrypt-key', type=str, help='Decryption key to use', default=DECRYPTION_KEY)
     parser.add_argument('--list', action='store_true', help='List all available bundles')
     parser.add_argument('--all-audio', action='store_true', help='Extract all audio bundles')
+    parser.add_argument('--all-video', action='store_true', help='Extract all video bundles')
     parser.add_argument('bundles', nargs='*', help='Bundles to extract')
     args = parser.parse_args()
 
-    if len(args.bundles) == 0 and not args.list and not args.all_audio:
+    if len(args.bundles) == 0 and not args.list and not args.all_audio and not args.all_video:
         parser.error('No bundles specified')
 
     UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
@@ -71,10 +79,14 @@ def main():
             process_bundle(bundle, ss, args.output)
         elif bundle.endswith('.acb'):
             process_audio(bundle, ss, cues, args.output)
+        elif bundle.endswith('.usm'):
+            process_usm(bundle, ss, args.output)
 
-    if args.all_audio:
+    if args.all_audio or args.all_video:
         for bundle in ss.list_all_bundles():
-            if bundle.endswith('.acb'):
+            if args.all_video and bundle.endswith('.usm'):
+                process_usm(bundle, ss, args.output)
+            elif args.all_audio and bundle.endswith('.acb'):
                 process_audio(bundle, ss, cues, args.output)
 
 

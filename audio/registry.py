@@ -1,3 +1,4 @@
+import os.path
 from typing import List
 
 import UnityPy
@@ -15,7 +16,7 @@ class CueSheet:
         self.id = id
         self.acb = acb
         self.awb = awb
-        self.base_name = acb.split('/', 2)[2].split('.')[0]
+        self.base_name = os.path.splitext(acb)[0]
 
 
 class CueRegistry:
