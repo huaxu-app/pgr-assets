@@ -49,7 +49,7 @@ class PGRUSM(PyCriCodecs.USM):
                 files.append(path)
 
             # FFMPEG the shit out of it
-            ffmpeg = FFmpeg().option('y')
+            ffmpeg = FFmpeg().option('y').option('hwaccel', 'auto')
             for f in files:
                 ffmpeg.input(f)
             ffmpeg.output(outfile, {

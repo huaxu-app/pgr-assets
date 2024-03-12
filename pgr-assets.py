@@ -1,5 +1,6 @@
 import argparse
 import logging
+import multiprocessing
 import os
 import sys
 import UnityPy
@@ -16,27 +17,39 @@ DECRYPTION_KEY = 'y5XPvqLOrCokWRIa'
 AUDIO_KEY = 62855594017927612
 
 
-def process_bundle(bundle: str, sources: SourceSet, output_dir: str):
-    bundle_data = sources.find_bundle(bundle)
+class Lookups:
+    sources: SourceSet
+    cues: CueRegistry
+
+    def __init__(self, sources: SourceSet):
+        self.sources = sources
+        self.cues = CueRegistry()
+
+    def load_cues(self):
+        self.cues.init(self.sources)
+
+
+def process_bundle(bundle: str, state: Lookups, output_dir: str):
+    bundle_data = state.sources.find_bundle(bundle)
     env = UnityPy.load(bundle_data)
     logger.info(f"Extracting {bundle}")
     extractors.bundle.extract_bundle(env, output_dir=output_dir)
 
 
-def process_audio(bundle: str, sources: SourceSet, cues: CueRegistry, output_dir: str):
-    cue_sheet = cues.get_cue_sheet(bundle)
-    acb_data = sources.find_bundle(cue_sheet.acb)
+def process_audio(bundle: str, state: Lookups, output_dir: str):
+    cue_sheet = state.cues.get_cue_sheet(bundle)
+    acb_data = state.sources.find_bundle(cue_sheet.acb)
     awb_data = b''
     if cue_sheet.awb:
-        awb_data = sources.find_bundle(cue_sheet.awb)
+        awb_data = state.sources.find_bundle(cue_sheet.awb)
     acb = ACB(acb_data, awb_data)
     logger.info(f"Extracting {cue_sheet.acb}")
     acb.extract(decode=True, key=AUDIO_KEY, dirname=os.path.join(output_dir, cue_sheet.base_name))
 
 
-def process_usm(bundle: str, sources: SourceSet, output_dir: str):
+def process_usm(bundle: str, state: Lookups, output_dir: str):
     filename = os.path.splitext(bundle)[0] + '.mp4'
-    data = sources.find_bundle(bundle)
+    data = state.sources.find_bundle(bundle)
     usm = extractors.PGRUSM(data, key=AUDIO_KEY)
     usm.extract_video(os.path.join(output_dir, filename))
 
@@ -70,24 +83,24 @@ def main():
             print(f" - {bundle}")
         sys.exit(0)
 
-    cues = CueRegistry()
+    state = Lookups(ss)
     if any(bundle.endswith('.acb') for bundle in args.bundles) or args.all_audio:
-        cues.init(ss)
+        state.load_cues()
 
     for bundle in args.bundles:
         if bundle.endswith('.ab'):
-            process_bundle(bundle, ss, args.output)
+            process_bundle(bundle, state, args.output)
         elif bundle.endswith('.acb'):
-            process_audio(bundle, ss, cues, args.output)
+            process_audio(bundle, state, args.output)
         elif bundle.endswith('.usm'):
-            process_usm(bundle, ss, args.output)
+            process_usm(bundle, state, args.output)
 
     if args.all_audio or args.all_video:
         for bundle in ss.list_all_bundles():
             if args.all_video and bundle.endswith('.usm'):
-                process_usm(bundle, ss, args.output)
+                process_usm(bundle, state, args.output)
             elif args.all_audio and bundle.endswith('.acb'):
-                process_audio(bundle, ss, cues, args.output)
+                process_audio(bundle, state, args.output)
 
 
 if __name__ == '__main__':
