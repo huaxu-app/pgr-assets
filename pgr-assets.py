@@ -25,11 +25,13 @@ class State:
     output_dir: str
     sources: SourceSet
     cues: CueRegistry
+    recode_video: bool
 
-    def __init__(self, sources: SourceSet, output_dir: str):
+    def __init__(self, sources: SourceSet, output_dir: str, recode_video: bool = False):
         self.sources = sources
         self.cues = CueRegistry()
         self.output_dir = output_dir
+        self.recode_video = recode_video
 
     def load_cues(self):
         self.cues.init(self.sources)
@@ -58,7 +60,7 @@ def process_usm(bundle: str, state: State):
     data = state.sources.find_bundle(bundle)
     usm = extractors.PGRUSM(data, key=AUDIO_KEY)
     logger.debug(f"Extracting {filename}")
-    usm.extract_video(os.path.join(state.output_dir, 'video', filename))
+    usm.extract_video(os.path.join(state.output_dir, 'video', filename), recode=state.recode_video)
 
 
 def process(bundle: str, state: State):
@@ -120,6 +122,7 @@ def main():
     parser.add_argument('--all-audio', action='store_true', help='Extract all audio bundles')
     parser.add_argument('--all-video', action='store_true', help='Extract all video bundles')
     parser.add_argument('--all-images', action='store_true', help='Extract all image bundles')
+    parser.add_argument('--recode-video', action='store_true', help='Recode h264 in videos')
     parser.add_argument('--all', action='store_true', help='Extract all i can find')
     parser.add_argument('--cache', type=str, help='Path to sha1 cache file', default='')
     parser.add_argument('bundles', nargs='*', help='Bundles to extract')
@@ -137,7 +140,7 @@ def main():
             print(f" - {bundle}")
         sys.exit(0)
 
-    state = State(ss, args.output)
+    state = State(ss, args.output, args.recode_video)
     if any(bundle.endswith('.acb') for bundle in args.bundles) or args.all_audio or args.all:
         state.load_cues()
 
