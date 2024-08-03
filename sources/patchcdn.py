@@ -35,8 +35,8 @@ class PatchCdn(Enum):
     EN_PC = PatchCdnData('http://prod-encdn-volcdn.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en.pc',
                          'standalone')
     KR = PatchCdnData('http://prod-krcdn-llt.punishing.net/prod', 'com.herogame.punishing.grayraven.kr', 'android')
-    # Broken due to inconsistent
-    #KR_PC = PatchCdnData('http://prod-krcdn-llt.punishing.net/prod', 'com.herogame.punishing.grayraven.kr.pc', 'standalone')
+    KR_PC = PatchCdnData('http://prod-krcdn-llt.punishing.net/prod', 'com.herogame.pc.punishing.grayraven.kr', 'standalone')
+
     # http://prod.zspnsalicdn.yingxiong.com/prod/client/config/com.kurogame.haru.kuro/2.9.0/standalone/config.tab
     CN_PC = PatchCdnData('http://prod.zspnsalicdn.yingxiong.com/prod', 'com.kurogame.haru.kuro', 'standalone')
 
