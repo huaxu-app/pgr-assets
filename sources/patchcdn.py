@@ -34,7 +34,9 @@ class PatchCdn(Enum):
     EN = PatchCdnData('http://prod-encdn-volcdn.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en', 'android')
     EN_PC = PatchCdnData('http://prod-encdn-volcdn.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en.pc',
                          'standalone')
-    KR = PatchCdnData('http://prod-krcdn-akamai.punishing.net/prod', 'com.herogame.punishing.grayraven.kr', 'android')
+    KR = PatchCdnData('http://prod-krcdn-llt.punishing.net/prod', 'com.herogame.punishing.grayraven.kr', 'android')
+    # Broken due to inconsistent
+    #KR_PC = PatchCdnData('http://prod-krcdn-llt.punishing.net/prod', 'com.herogame.punishing.grayraven.kr.pc', 'standalone')
     # http://prod.zspnsalicdn.yingxiong.com/prod/client/config/com.kurogame.haru.kuro/2.9.0/standalone/config.tab
     CN_PC = PatchCdnData('http://prod.zspnsalicdn.yingxiong.com/prod', 'com.kurogame.haru.kuro', 'standalone')
 
@@ -119,6 +121,8 @@ class PatchCdnSource(Source):
 
         data = {}
         for line in resp.text.splitlines(False):
+            if line == '':
+                continue
             key, _, value = line.split('\t')
             data[key] = value
 

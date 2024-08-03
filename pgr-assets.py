@@ -64,19 +64,23 @@ def process_usm(bundle: str, state: State):
 
 
 def process(bundle: str, state: State):
-    if bundle.endswith('.ab'):
-        process_bundle(bundle, state)
-    elif bundle.endswith('.acb'):
-        process_audio(bundle, state)
-    elif bundle.endswith('.awb'):
-        pass  # ignore awb files, they're extracted with the acb
-    elif bundle.endswith('.usm'):
-        process_usm(bundle, state)
-    else:
-        raise ValueError(f"Unsupported bundle type: {bundle}")
+    try:
+        if bundle.endswith('.ab'):
+            process_bundle(bundle, state)
+        elif bundle.endswith('.acb'):
+            process_audio(bundle, state)
+        elif bundle.endswith('.awb'):
+            pass  # ignore awb files, they're extracted with the acb
+        elif bundle.endswith('.usm'):
+            process_usm(bundle, state)
+        else:
+            raise ValueError(f"Unsupported bundle type: {bundle}")
 
-    # Processed files get returned for processing into bundle cache
-    return bundle
+        # Processed files get returned for processing into bundle cache
+        return bundle
+    except Exception as e:
+        logger.exception(f"Failed to process {bundle}", exc_info=e)
+        return None
 
 
 def determine_sha1_cache_skip(file: str, bundles: Set[str], state: State) -> Set[str]:
@@ -110,15 +114,36 @@ def write_sha1_cache(file: str, bundles: List[str], state: State):
         json.dump(entries, f)
 
 
+def execute_in_pool(bundles: List[str], state: State, cache: str, max_workers: int = None):
+    finished_bundles = list()
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(process, bundle, state) for bundle in bundles]
+        for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
+            try:
+                result = future.result()
+                if result:
+                    finished_bundles.append(result)
+
+                # Checkpoints for cache
+                if cache and len(finished_bundles) % 100 == 0:
+                    write_sha1_cache(cache, finished_bundles, state)
+            except Exception as e:
+                logger.error(f"Failed to process bundle: {e}")
+
+    if cache:
+        write_sha1_cache(cache, finished_bundles, state)
+
 def main():
     parser = argparse.ArgumentParser(description='Extracts the assets required for kennel')
-    parser.add_argument('--primary', type=str, choices=['obb', 'EN_PC', 'CN_PC'], default='EN_PC')
+    parser.add_argument('--primary', type=str, choices=['obb', 'EN_PC', 'EN_PC_PRE', 'KR_PC', 'CN_PC'], default='EN_PC')
     parser.add_argument('--obb', type=str, help='Path to obb file. Only valid when --primary is set to obb.')
-    parser.add_argument('--patch', type=str, choices=['EN', 'EN_PC', 'KR', 'CN_PC'], default='EN_PC')
+    parser.add_argument('--patch', type=str, choices=['EN', 'EN_PC', 'KR', 'KR_PC', 'CN_PC'], default='EN_PC')
     parser.add_argument('--version', type=str, help='The client version to use.', required=True)
     parser.add_argument('--output', type=str, help='Output directory to use', required=True)
     parser.add_argument('--decrypt-key', type=str, help='Decryption key to use', default=DECRYPTION_KEY)
     parser.add_argument('--list', action='store_true', help='List all available bundles')
+    parser.add_argument('--all-temp', action='store_true', help='Extract all temp (text) bundles')
     parser.add_argument('--all-audio', action='store_true', help='Extract all audio bundles')
     parser.add_argument('--all-video', action='store_true', help='Extract all video bundles')
     parser.add_argument('--all-images', action='store_true', help='Extract all image bundles')
@@ -147,8 +172,11 @@ def main():
     # determine all tasks based on flags, use set because we don't want duplicates
     listed_bundles = set(args.bundles)
     listed_bundles.update(bundle for bundle in ss.list_all_bundles() if args.all or
+                          (args.all_temp and bundle.endswith('.ab') and 'assets/temp/' in bundle) or
                           (args.all_images and bundle.endswith('.ab') and 'assets/product/texture/' in bundle) or
                           (args.all_audio and bundle.endswith('.acb')) or (args.all_video and bundle.endswith('.usm')))
+
+
 
     if len(listed_bundles) == 0:
         logger.error('No bundles specified')
@@ -157,25 +185,15 @@ def main():
     if args.cache:
         listed_bundles = determine_sha1_cache_skip(args.cache, listed_bundles, state)
 
-    finished_bundles = list()
+    non_video_bundles = [bundle for bundle in listed_bundles if not bundle.endswith('.usm')]
+    logger.info(f"Processing {len(non_video_bundles)} non-video bundles")
+    execute_in_pool(non_video_bundles, state, args.cache)
 
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        futures = [executor.submit(process, bundle, state) for bundle in listed_bundles]
-        for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
-            try:
-                result = future.result()
-                if result:
-                    finished_bundles.append(result)
-
-                # Checkpoints for cache
-                if args.cache and len(finished_bundles) % 100 == 0:
-                    write_sha1_cache(args.cache, finished_bundles, state)
-            except Exception as e:
-                logger.error(f"Failed to process bundle: {e}")
-
-    if args.cache:
-        write_sha1_cache(args.cache, finished_bundles, state)
+    video_bundles = [bundle for bundle in listed_bundles if bundle.endswith('.usm')]
+    logger.info(f"Processing {len(video_bundles)} video bundles")
+    execute_in_pool(video_bundles, state, args.cache, max_workers=1)
 
 
 if __name__ == '__main__':
     main()
+

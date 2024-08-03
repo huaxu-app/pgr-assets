@@ -13,24 +13,29 @@ class PcStarterData:
     cdn: str
     game_id: int
     iteration: int
+    predownload: bool
 
     def index_url(self):
         return f'{self.cdn}pcstarter/prod/game/G{self.game_id}/{self.iteration}/index.json'
 
 
 class PcStarterCdn(Enum):
-    EN_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 143, 4)
-    CN_PC = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/', 148, 10001)
+    EN_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 143, 4, False)
+    EN_PC_PRE = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 143, 4, True)
+    KR_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 286, '50011_XefwDdpgPxxLABoTOD0yuqTFBC3koJZ0', False)
+    CN_PC = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/', 148, 10001, False)
 
 
 class PcStarterSource(Source):
     _logger = logging.getLogger('PcStarterSource')
     _index = None
     _resources = None
+    _section: str
 
     def __init__(self, cdn: PcStarterCdn):
         self._cdn_name = cdn.name
         self._cdn = cdn.value
+        self._section = 'predownload' if cdn.value.predownload else 'default'
 
     def index(self):
         if self._index is not None:
@@ -52,10 +57,10 @@ class PcStarterSource(Source):
         return resp.content
 
     def version(self) -> Union[str, None]:
-        return self.index()['default']['version']
+        return self.index()[self._section]['version']
 
     def base_path(self):
-        return self.index()['default']['resourcesBasePath']
+        return self.index()[self._section]['resourcesBasePath']
 
     def blob_cdn_url(self):
         return self.index()['default']['cdnList'][0]['url']
@@ -72,7 +77,7 @@ class PcStarterSource(Source):
 
         blob_base = self.blob_cdn_url()
 
-        resource_index = self._get_json(blob_base + self.index()['default']['resources'])
+        resource_index = self._get_json(blob_base + self.index()[self._section]['resources'])
         resources = {}
         for resource in resource_index['resource']:
             blob = resource['dest'].split('/')[-1]
