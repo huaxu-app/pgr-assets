@@ -43,6 +43,10 @@ class PGRUSM(PyCriCodecs.USM):
         with tempfile.TemporaryDirectory() as tempdir:
             files = []
             for k, v in self.output.items():
+                # I'm not sure what this is... ffmpeg doesn't either
+                if k.startswith('@SBT_'):
+                    continue
+
                 path = os.path.join(tempdir, k)
                 with open(path, "wb") as f:
                     f.write(v)

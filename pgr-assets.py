@@ -46,13 +46,28 @@ def process_bundle(bundle: str, state: State):
 
 def process_audio(bundle: str, state: State):
     cue_sheet = state.cues.get_cue_sheet(bundle)
-    acb_data = state.sources.find_bundle(cue_sheet.acb)
+
     awb_data = b''
-    if cue_sheet.awb:
-        awb_data = state.sources.find_bundle(cue_sheet.awb)
+
+    if cue_sheet is not None:
+        acb_file = cue_sheet.acb
+        base_name = cue_sheet.base_name
+        acb_data = state.sources.find_bundle(cue_sheet.acb)
+        if cue_sheet.awb:
+            awb_data = state.sources.find_bundle(cue_sheet.awb)
+    else:
+        logger.warning(f"Failed to find cue sheet for {bundle}, making assumptions")
+        acb_file = bundle
+        base_name = bundle.split('/', 2)[2].split('.')[0].lower()
+        acb_data = state.sources.find_bundle(bundle)
+        try:
+            awb_data = state.sources.find_bundle(bundle.replace('.acb', '.awb'))
+        except Exception:
+            pass
+
     acb = ACB(acb_data, awb_data)
-    logger.debug(f"Extracting {cue_sheet.acb}")
-    acb.extract(key=AUDIO_KEY, dirname=os.path.join(state.output_dir, 'audio', cue_sheet.base_name), encode=True)
+    logger.debug(f"Extracting {acb_file}")
+    acb.extract(key=AUDIO_KEY, dirname=os.path.join(state.output_dir, 'audio', base_name), encode=True)
 
 
 def process_usm(bundle: str, state: State):

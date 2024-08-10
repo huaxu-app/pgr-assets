@@ -1,0 +1,12 @@
+.direnv/
+.git/
+__pycache__/
+.idea/
+build/
+dist/
+pgrtemp/
+.env/
+.envrc
+*.spec
+Justfile
+*.pyc

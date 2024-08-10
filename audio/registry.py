@@ -35,5 +35,5 @@ class CueRegistry:
         # Rekey the dict and use lower(acb) as key
         self.cues_by_acb = {cue_sheet.acb.lower(): cue_sheet for cue_sheet in cue_sheets.values()}
 
-    def get_cue_sheet(self, acb: str) -> CueSheet:
-        return self.cues_by_acb[acb.lower()]
+    def get_cue_sheet(self, acb: str) -> CueSheet | None:
+        return self.cues_by_acb.get(acb.lower(), None)
