@@ -151,9 +151,9 @@ def execute_in_pool(bundles: List[str], state: State, cache: str, max_workers: i
 
 def main():
     parser = argparse.ArgumentParser(description='Extracts the assets required for kennel')
-    parser.add_argument('--primary', type=str, choices=['obb', 'EN_PC', 'EN_PC_PRE', 'KR_PC', 'CN_PC'], default='EN_PC')
+    parser.add_argument('--primary', type=str, choices=['obb', 'EN_PC', 'EN_PC_PRE', 'KR_PC', 'JP_PC', 'CN_PC'], default='EN_PC')
     parser.add_argument('--obb', type=str, help='Path to obb file. Only valid when --primary is set to obb.')
-    parser.add_argument('--patch', type=str, choices=['EN', 'EN_PC', 'KR', 'KR_PC', 'CN_PC'], default='EN_PC')
+    parser.add_argument('--patch', type=str, choices=['EN', 'EN_PC', 'KR', 'KR_PC', 'JP', 'JP_PC', 'CN', 'CN_PC'], default='EN_PC')
     parser.add_argument('--version', type=str, help='The client version to use.', required=True)
     parser.add_argument('--output', type=str, help='Output directory to use', required=True)
     parser.add_argument('--decrypt-key', type=str, help='Decryption key to use', default=DECRYPTION_KEY)

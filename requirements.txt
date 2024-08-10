@@ -7,4 +7,4 @@ python-ffmpeg==2.0.12
 tqdm~=4.66.1
 pillow~=10.3.0
 
-PyCriCodecs @ git+https://github.com/Youjose/PyCriCodecs@main
+PyCriCodecs @ git+https://github.com/BlackNovaTech/PyCriCodecs@main
