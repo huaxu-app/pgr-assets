@@ -32,7 +32,7 @@ class PGRUSM(PyCriCodecs.USM):
             if k.startswith('@SFA_'):
                 self.output[k] = PyCriCodecs.HCA(v, key=self.key).decode()
 
-    def extract_video(self, outfile: str, recode=False):
+    def extract_video(self, outfile: str, recode=False, nvenc=False):
         self.stream.seek(0)
         if not self.demuxed:
             self.demux()
@@ -56,8 +56,15 @@ class PGRUSM(PyCriCodecs.USM):
             ffmpeg = FFmpeg().option('y').option('hwaccel', 'auto')
             for f in files:
                 ffmpeg.input(f)
+
+            encoder = 'copy'
+            if recode and nvenc:
+                encoder = 'h264_nvenc'
+            elif recode:
+                encoder = 'h264'
+
             ffmpeg.output(outfile, {
-                "c:v": "h264" if recode else "copy",
+                "c:v": encoder,
                 "movflags": "faststart" if recode else "",
                 "c:a": "mp3",
                 "ar": "44100",

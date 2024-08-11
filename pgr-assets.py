@@ -26,12 +26,14 @@ class State:
     sources: SourceSet
     cues: CueRegistry
     recode_video: bool
+    nvenc: bool
 
-    def __init__(self, sources: SourceSet, output_dir: str, recode_video: bool = False):
+    def __init__(self, sources: SourceSet, output_dir: str, recode_video: bool = False, nvenc: bool = False):
         self.sources = sources
         self.cues = CueRegistry()
         self.output_dir = output_dir
         self.recode_video = recode_video
+        self.nvenc = nvenc
 
     def load_cues(self):
         self.cues.init(self.sources)
@@ -75,7 +77,7 @@ def process_usm(bundle: str, state: State):
     data = state.sources.find_bundle(bundle)
     usm = extractors.PGRUSM(data, key=AUDIO_KEY)
     logger.debug(f"Extracting {filename}")
-    usm.extract_video(os.path.join(state.output_dir, 'video', filename), recode=state.recode_video)
+    usm.extract_video(os.path.join(state.output_dir, 'video', filename), recode=state.recode_video, nvenc=state.nvenc)
 
 
 def process(bundle: str, state: State):
@@ -129,7 +131,7 @@ def write_sha1_cache(file: str, bundles: List[str], state: State):
         json.dump(entries, f)
 
 
-def execute_in_pool(bundles: List[str], state: State, cache: str, max_workers: int = None):
+def execute_in_pool(bundles: List[str], state: State, cache: str, max_workers: int = None, checkpoint_step: int = 100):
     finished_bundles = list()
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -141,7 +143,7 @@ def execute_in_pool(bundles: List[str], state: State, cache: str, max_workers: i
                     finished_bundles.append(result)
 
                 # Checkpoints for cache
-                if cache and len(finished_bundles) % 100 == 0:
+                if cache and len(finished_bundles) % checkpoint_step == 0:
                     write_sha1_cache(cache, finished_bundles, state)
             except Exception as e:
                 logger.error(f"Failed to process bundle: {e}")
@@ -163,6 +165,7 @@ def main():
     parser.add_argument('--all-video', action='store_true', help='Extract all video bundles')
     parser.add_argument('--all-images', action='store_true', help='Extract all image bundles')
     parser.add_argument('--recode-video', action='store_true', help='Recode h264 in videos')
+    parser.add_argument('--nvenc', action='store_true', help='Use NVenc to recode')
     parser.add_argument('--all', action='store_true', help='Extract all i can find')
     parser.add_argument('--cache', type=str, help='Path to sha1 cache file', default='')
     parser.add_argument('bundles', nargs='*', help='Bundles to extract')
@@ -180,7 +183,7 @@ def main():
             print(f" - {bundle}")
         sys.exit(0)
 
-    state = State(ss, args.output, args.recode_video)
+    state = State(ss, args.output, args.recode_video, args.nvenc)
     if any(bundle.endswith('.acb') for bundle in args.bundles) or args.all_audio or args.all:
         state.load_cues()
 
@@ -206,7 +209,7 @@ def main():
 
     video_bundles = [bundle for bundle in listed_bundles if bundle.endswith('.usm')]
     logger.info(f"Processing {len(video_bundles)} video bundles")
-    execute_in_pool(video_bundles, state, args.cache, max_workers=1)
+    execute_in_pool(video_bundles, state, args.cache, max_workers=5, checkpoint_step=1)
 
 
 if __name__ == '__main__':
