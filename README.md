@@ -36,3 +36,34 @@ options:
   --nvenc               Use NVenc to recode
   --cache CACHE         Path to sha1 cache file
 ```
+
+## Considerations
+
+### Why?
+
+While there are similar tools (like [CNStudio](https://github.com/Razmoth/CNStudio)) that can fulfill the primary task, 
+`pgr-assets` specializes itself towards Huaxu's goals, providing some major benefits:
+
+- It does not require you to have any local copy of the entire game worth of game bundles 
+  - It instead downloads the required files on-demand from the game's CDN servers
+- It supports the internal encryption and signature scheme used for text assets
+- It is aware of the file storage methods that PGR uses and properly extracts and decrypts
+  the flavors of audio and video
+- It converts assets into more web-friendly formats on the fly
+- It can do partial updates (by relying on the sha1 cache)
+
+All of these things made this worthwhile enough to invest in this custom tooling. 
+
+### Python
+
+Python was chosen for this project not specifically because I like it, but because it has the
+proper intersection of libraries to fulfill my use-cases. While C# has some alternatives 
+(You can grab the internal libraries of VGMtoolbox and AssetStudio),
+these alternatives come with major downsides and hacking around their non-officially-a-library status.
+
+In the end, I really didn't feel like building parsers for Unity Asset Bundles and Criware's formats,
+and wanted to just focus on getting shit done.
+
+Just run `just build` to build a pyinstaller'd version of pgr-assets (`dist/pgr-assets`) that you can use like a normal executable
+It's what I do.
+
