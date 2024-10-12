@@ -151,15 +151,27 @@ def execute_in_pool(bundles: List[str], state: State, cache: str, max_workers: i
     if cache:
         write_sha1_cache(cache, finished_bundles, state)
 
+PRESETS = {
+    'global': 'EN_PC',
+    'korea': 'KR_PC',
+    'japan': 'JP_PC',
+    'taiwan': 'TW_PC',
+    'china': 'CN_PC'
+}
+
 def main():
     parser = argparse.ArgumentParser(description='Extracts the assets required for kennel')
-    parser.add_argument('--primary', type=str, choices=['obb', 'EN_PC', 'EN_PC_PRE', 'KR_PC', 'JP_PC', 'TW_PC', 'CN_PC'], default='EN_PC')
+    parser.add_argument('--preset', type=str, choices=PRESETS.keys(), default='global')
+    parser.add_argument('--prerelease', action='store_true', help='Use the prerelease patch source, if available')
+    parser.add_argument('--primary', type=str, choices=['obb', 'EN_PC', 'KR_PC', 'JP_PC', 'TW_PC', 'CN_PC'])
     parser.add_argument('--obb', type=str, help='Path to obb file. Only valid when --primary is set to obb.')
-    parser.add_argument('--patch', type=str, choices=['EN', 'EN_PC', 'KR', 'KR_PC', 'JP', 'JP_PC', 'TW', 'TW_PC', 'CN', 'CN_PC'], default='EN_PC')
-    parser.add_argument('--version', type=str, help='The client version to use.', required=True)
-    parser.add_argument('--output', type=str, help='Output directory to use', required=True)
+    parser.add_argument('--patch', type=str, choices=['EN', 'EN_PC', 'KR', 'KR_PC', 'JP', 'JP_PC', 'TW', 'TW_PC', 'CN', 'CN_PC'])
+    parser.add_argument('--version', type=str, help='The client version to use. Inferred by default.')
+    parser.add_argument('--output', type=str, help='Output directory to use. Required for extraction, not list.')
     parser.add_argument('--decrypt-key', type=str, help='Decryption key to use', default=DECRYPTION_KEY)
+
     parser.add_argument('--list', action='store_true', help='List all available bundles')
+
     parser.add_argument('--all-temp', action='store_true', help='Extract all temp (text) bundles')
     parser.add_argument('--all-audio', action='store_true', help='Extract all audio bundles')
     parser.add_argument('--all-video', action='store_true', help='Extract all video bundles')
@@ -168,13 +180,19 @@ def main():
     parser.add_argument('--nvenc', action='store_true', help='Use NVenc to recode')
     parser.add_argument('--all', action='store_true', help='Extract all i can find')
     parser.add_argument('--cache', type=str, help='Path to sha1 cache file', default='')
+    parser.add_argument('--write-settings', action='store_true', help='Write a small settings file to the output directory containing preset and version')
     parser.add_argument('bundles', nargs='*', help='Bundles to extract')
     args = parser.parse_args()
+
+    if args.primary is None:
+        args.primary = PRESETS[args.preset]
+    if args.patch is None:
+        args.patch = PRESETS[args.preset]
 
     UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
 
     ss = SourceSet()
-    ss.add_primary(args.version, args.primary, args.obb)
+    ss.add_primary(args.primary, args.obb, args.prerelease)
     ss.add_patch(args.patch, args.version)
 
     if args.list:
@@ -182,6 +200,10 @@ def main():
         for bundle in ss.list_all_bundles():
             print(f" - {bundle}")
         sys.exit(0)
+
+    if not args.output:
+        logger.error('Output directory not specified')
+        sys.exit(1)
 
     state = State(ss, args.output, args.recode_video, args.nvenc)
     if any(bundle.endswith('.acb') for bundle in args.bundles) or args.all_audio or args.all:
@@ -212,6 +234,10 @@ def main():
     if len(video_bundles) > 0:
         logger.info(f"Processing {len(video_bundles)} video bundles")
         execute_in_pool(video_bundles, state, args.cache, max_workers=5, checkpoint_step=1)
+
+    if args.write_settings:
+        with open(os.path.join(args.output, 'settings.json'), 'w') as f:
+            json.dump({'server': args.preset, 'version': '%d.%d.%d' % ss.version()[:3]}, f)
 
 
 if __name__ == '__main__':

@@ -38,7 +38,7 @@ class ObbSource(Source):
         except KeyError:
             return None
 
-    def version(self) -> Union[str, None]:
+    def version(self) -> Union[Tuple[int, ...], None]:
         return None
 
     def index(self) -> Dict[str, Tuple[str, str, int]]:

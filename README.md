@@ -1,14 +1,25 @@
 # PGR Assets
 > Backbone for huaxu's asset database
 
+## Common usages
+
+```bash
+# List assets on global:
+pgr-assets --list
+
+# Switch servers by changing preset: (global, korea, japan, taiwan, china)
+pgr-assets --preset global --list
+
+# Extract all text assets
+pgr-assets --all-temp --output /path/to/output
+```
+
 ## Usage
 
 ```
-usage: pgr-assets [-h] [--primary {obb,EN_PC,EN_PC_PRE,KR_PC,JP_PC,TW_PC,CN_PC}] [--obb OBB]
-                  [--patch {EN,EN_PC,KR,KR_PC,JP,JP_PC,TW,TW_PC,CN,CN_PC}] --version VERSION --output OUTPUT
-                  [--decrypt-key DECRYPT_KEY] [--list] [--all-temp] [--all-audio] [--all-video]
-                  [--all-images] [--recode-video] [--nvenc] [--all] [--cache CACHE]
-                  [bundles ...]
+usage: pgr-assets.py [-h] [--preset {global,korea,japan,taiwan,china}] [--prerelease] [--primary {obb,EN_PC,KR_PC,JP_PC,TW_PC,CN_PC}] [--obb OBB] [--patch {EN,EN_PC,KR,KR_PC,JP,JP_PC,TW,TW_PC,CN,CN_PC}] [--version VERSION] [--output OUTPUT]
+                     [--decrypt-key DECRYPT_KEY] [--list] [--all-temp] [--all-audio] [--all-video] [--all-images] [--recode-video] [--nvenc] [--all] [--cache CACHE] [--write-settings]
+                     [bundles ...]
 
 Extracts the assets required for kennel
 
@@ -17,24 +28,26 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-
-  --version VERSION     The client version to use. (required)
-  --output OUTPUT       Output directory to use (required)
-
-  --primary {obb,EN_PC,EN_PC_PRE,KR_PC,JP_PC,TW_PC,CN_PC} (default: EN_PC)
-  --patch {EN,EN_PC,KR,KR_PC,JP,JP_PC,TW,TW_PC,CN,CN_PC} (default: EN_PC)
+  --preset {global,korea,japan,taiwan,china}
+  --prerelease          Use the prerelease patch source, if available
+  --primary {obb,EN_PC,KR_PC,JP_PC,TW_PC,CN_PC}
   --obb OBB             Path to obb file. Only valid when --primary is set to obb.
-
+  --patch {EN,EN_PC,KR,KR_PC,JP,JP_PC,TW,TW_PC,CN,CN_PC}
+  --version VERSION     The client version to use. Inferred by default.
+  --output OUTPUT       Output directory to use. Required for extraction, not list.
+  --decrypt-key DECRYPT_KEY
+                        Decryption key to use
   --list                List all available bundles
   --all-temp            Extract all temp (text) bundles
   --all-audio           Extract all audio bundles
   --all-video           Extract all video bundles
   --all-images          Extract all image bundles
-  --all                 Extract all i can find
-
   --recode-video        Recode h264 in videos
   --nvenc               Use NVenc to recode
+  --all                 Extract all i can find
   --cache CACHE         Path to sha1 cache file
+  --write-settings      Write a small settings file to the output directory containing preset and version
+
 ```
 
 ## Considerations

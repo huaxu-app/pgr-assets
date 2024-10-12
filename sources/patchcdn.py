@@ -120,8 +120,8 @@ class PatchCdnSource(Source):
 
         return self._index
 
-    def version(self) -> Union[str, None]:
-        return self._version
+    def version(self) -> Union[Tuple[int, ...], None]:
+        return tuple(int(s) for s in self._version.split('.'))
 
     def bundle_names(self):
         return self.index().keys()

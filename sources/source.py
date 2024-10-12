@@ -1,4 +1,4 @@
-from typing import Union, Dict, List
+from typing import Union, Dict, List, Tuple
 
 
 class Source(object):
@@ -18,7 +18,7 @@ class Source(object):
         """Returns the blob that contains the bundle, or None if unknown"""
         raise NotImplementedError()
 
-    def version(self) -> Union[str, None]:
+    def version(self) -> Union[Tuple[int, ...], None]:
         """Returns the version of the source, or None if unknown"""
         raise NotImplementedError()
 

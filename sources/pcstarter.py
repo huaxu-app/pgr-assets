@@ -1,5 +1,5 @@
 import logging
-from typing import Union
+from typing import Union, Tuple
 
 import requests
 
@@ -34,10 +34,10 @@ class PcStarterSource(Source):
     _resources = None
     _section: str
 
-    def __init__(self, cdn: PcStarterCdn):
+    def __init__(self, cdn: PcStarterCdn, prerelease: bool):
         self._cdn_name = cdn.name
         self._cdn = cdn.value
-        self._section = 'predownload' if cdn.value.predownload else 'default'
+        self._section = 'predownload' if prerelease else 'default'
 
     def index(self):
         if self._index is not None:
@@ -58,8 +58,8 @@ class PcStarterSource(Source):
             raise Exception(f"Failed to download blob {blob} - {resp.status_code}")
         return resp.content
 
-    def version(self) -> Union[str, None]:
-        return self.index()[self._section]['version']
+    def version(self) -> Union[Tuple[int, ...], None]:
+        return tuple(int(s) for s in self.index()[self._section]['version'].split('.'))
 
     def base_path(self):
         return self.index()[self._section]['resourcesBasePath']
