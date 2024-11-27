@@ -50,6 +50,25 @@ options:
 
 ```
 
+## Requirements
+
+You'll need to have [`ffmpeg`](https://ffmpeg.org/) installed. Just use your platform's recommended way of installing it, such as:
+
+```bash
+# Arch Linux
+$ pacman -Syu ffmpeg
+# Fedora / RHEL (derivatives)
+$ dnf install ffmpeg
+# Debian / Ubuntu
+$ apt install ffmpeg
+# MacOS
+$ brew install ffmpeg
+# Windows
+$ winget install --id=Gyan.FFmpeg  -e
+```
+
+Alternatively, follow the [official download instructions](https://ffmpeg.org/download.html) for your platform.
+
 ## Considerations
 
 ### Why?
