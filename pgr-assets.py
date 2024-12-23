@@ -28,14 +28,16 @@ class State:
     recode_video: bool
     nvenc: bool
     decrypt_key: str
+    convert_binary_tables: bool
 
-    def __init__(self, sources: SourceSet, output_dir: str, decrypt_key: str, recode_video: bool = False, nvenc: bool = False):
+    def __init__(self, sources: SourceSet, output_dir: str, decrypt_key: str, recode_video: bool = False, nvenc: bool = False, convert_binary_tables: bool = False):
         self.sources = sources
         self.cues = CueRegistry()
         self.output_dir = output_dir
         self.recode_video = recode_video
         self.nvenc = nvenc
         self.decrypt_key = decrypt_key
+        self.convert_binary_tables = convert_binary_tables
 
     def load_cues(self):
         self.cues.init(self.sources)
@@ -45,7 +47,7 @@ def process_bundle(bundle: str, state: State):
     bundle_data = state.sources.find_bundle(bundle)
     env = UnityPy.load(bundle_data)
     logger.debug(f"Extracting {bundle}")
-    extractors.bundle.extract_bundle(env, output_dir=state.output_dir)
+    extractors.bundle.extract_bundle(env, output_dir=state.output_dir, allow_binary_table_convert=state.convert_binary_tables)
 
 
 def process_audio(bundle: str, state: State):
@@ -180,6 +182,7 @@ def main():
     parser.add_argument('--all-video', action='store_true', help='Extract all video bundles')
     parser.add_argument('--all-images', action='store_true', help='Extract all image bundles')
     parser.add_argument('--recode-video', action='store_true', help='Recode h264 in videos')
+    parser.add_argument('--convert-binary-tables', action='store_true', help='Allows converting binary tables into CSV files (WARNING: not everything is supported)')
     parser.add_argument('--nvenc', action='store_true', help='Use NVenc to recode')
     parser.add_argument('--all', action='store_true', help='Extract all i can find')
     parser.add_argument('--cache', type=str, help='Path to sha1 cache file', default='')
@@ -207,7 +210,7 @@ def main():
         logger.error('Output directory not specified')
         sys.exit(1)
 
-    state = State(ss, args.output, args.decrypt_key, args.recode_video, args.nvenc)
+    state = State(ss, args.output, args.decrypt_key, args.recode_video, args.nvenc, args.convert_binary_tables)
     if any(bundle.endswith('.acb') for bundle in args.bundles) or args.all_audio or args.all:
         state.load_cues()
 

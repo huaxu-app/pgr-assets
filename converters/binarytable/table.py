@@ -9,6 +9,23 @@ class Column:
     name: str
     type: int
     list_length: int = 0
+    dict_keys: list = None
+    dict_key_presence: set = None
+
+    def is_dict_type(self):
+        return 9 <= self.type <= 13
+
+    def is_int_keyed_dict(self):
+        return self.type == 10 or self.type == 11 or self.type == 13
+
+    def add_dict_key(self, key):
+        if self.dict_keys is None:
+            self.dict_keys = list()
+            self.dict_key_presence = set()
+
+        if key not in self.dict_key_presence:
+            self.dict_key_presence.add(key)
+            self.dict_keys.append(key)
 
 class BinaryTable:
     reader: Reader
@@ -37,6 +54,8 @@ class BinaryTable:
             self.columns.append(Column(column_name, column_type))
 
         self.has_primary_key = self.reader.read_bool()
+        self.primary_key = ''
+        self.primary_key_length = 0
         if self.has_primary_key:
             self.primary_key = self.reader.read_string()
             self.primary_key_length = self.reader.read_int()
@@ -58,8 +77,11 @@ class BinaryTable:
 
             row.append(value)
 
-            if type(value) is list and len(value) > column.list_length:
+            if (type(value) is list or column.is_int_keyed_dict()) and len(value) > column.list_length:
                 column.list_length = len(value)
+            elif column.is_dict_type():
+                for key in value.keys():
+                    column.add_dict_key(key)
 
         return row
 
@@ -68,16 +90,26 @@ class BinaryTable:
             if column.list_length > 0:
                 for i in range(column.list_length):
                     yield f"{column.name}[{i}]"
+            elif column.is_dict_type():
+                for key in column.dict_keys or []:
+                    yield f"{column.name}[{key}]"
             else:
                 yield column.name
 
-    @staticmethod
-    def csv_row(row: List):
-        for value in row:
+    def csv_row(self, row: List):
+        for key, value in enumerate(row):
+            column = self.columns[key]
             if type(value) is list:
                 yield from value
-            elif type(value) is dict:
-                raise Exception("Cannot convert dict to CSV")
+            # Int dicts are lists if we squint hard enough
+            elif column.is_int_keyed_dict():
+                for i in range(len(value)):
+                    yield value.get(i, '')
+            # Stringy dicts have their own global key list
+            elif column.is_dict_type():
+                keys = self.columns[key].dict_keys or []
+                for k in keys:
+                    yield value.get(k, '')
             else:
                 yield value
 

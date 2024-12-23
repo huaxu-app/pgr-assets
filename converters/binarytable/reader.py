@@ -1,5 +1,6 @@
 import os
 import struct
+from decimal import Decimal
 from typing import BinaryIO
 
 MAX_I32 = 2_147_483_647
@@ -120,7 +121,7 @@ class Reader:
         n = self.read_string()
         if n == '':
             return 0
-        raise Exception(f"Unimplemented fix-conversion: {n}")
+        return Decimal(n)
 
     def read_list_fix(self):
         count = self.read_int()

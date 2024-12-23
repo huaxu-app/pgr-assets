@@ -1,5 +1,8 @@
+import io
 import os
 from typing import Tuple
+
+from converters.binarytable.table import BinaryTable
 
 
 def decrypt(content, offset=None, count=None):
@@ -51,9 +54,23 @@ def is_utf8(data: memoryview) -> bool:
     except UnicodeDecodeError:
         return False
 
+def convert_to_csv(data: memoryview) -> bytearray:
+    try:
+        output = io.StringIO(newline='')
+        table = BinaryTable(io.BytesIO(data))
+        table.to_csv(output)
+        return bytearray(output.getvalue().encode())
+    except Exception as e:
+        raise e
 
-def rewrite_text_asset(path: str, data: memoryview) -> Tuple[str, bytearray]:
-    if len(data) > 128 and not is_utf8(data):
+def rewrite_text_asset(path: str, data: memoryview, allow_binary_table_convert=False) -> Tuple[str, bytearray]:
+    if '/temp/bytes/' in path:
+        if allow_binary_table_convert:
+            data = convert_to_csv(data)
+            path = path.replace('.tab.bytes', '.csv')
+
+
+    elif len(data) > 128 and not is_utf8(data):
         # RSA signature can fuck itself
         data = bytearray(data[128:])
 
