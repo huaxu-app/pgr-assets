@@ -68,8 +68,10 @@ def rewrite_text_asset(path: str, data: memoryview, allow_binary_table_convert=F
         if allow_binary_table_convert:
             data = convert_to_csv(data)
             path = path.replace('.tab.bytes', '.csv')
-
-
+            if path.endswith('.bytes'):
+                # Extremely weird case where its usually a directory
+                path_without_bytes, _ = os.path.splitext(path)
+                path = os.path.join(path_without_bytes, os.path.basename(path_without_bytes) + '.csv')
     elif len(data) > 128 and not is_utf8(data):
         # RSA signature can fuck itself
         data = bytearray(data[128:])

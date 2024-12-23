@@ -27,6 +27,8 @@ def extract_bundle(env: UnityPy.Environment, output_dir: str, allow_binary_table
             elif obj.type.name == "TextAsset":
                 data = obj.read()
                 dest, data = rewrite_text_asset(dest, data.script, allow_binary_table_convert=allow_binary_table_convert)
+                # path can change a bit
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
                 with open(dest, "wb") as f:
                     f.write(data)
                 logger.debug(f"Extracted {path}")
