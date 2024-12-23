@@ -27,13 +27,15 @@ class State:
     cues: CueRegistry
     recode_video: bool
     nvenc: bool
+    decrypt_key: str
 
-    def __init__(self, sources: SourceSet, output_dir: str, recode_video: bool = False, nvenc: bool = False):
+    def __init__(self, sources: SourceSet, output_dir: str, decrypt_key: str, recode_video: bool = False, nvenc: bool = False):
         self.sources = sources
         self.cues = CueRegistry()
         self.output_dir = output_dir
         self.recode_video = recode_video
         self.nvenc = nvenc
+        self.decrypt_key = decrypt_key
 
     def load_cues(self):
         self.cues.init(self.sources)
@@ -81,6 +83,7 @@ def process_usm(bundle: str, state: State):
 
 
 def process(bundle: str, state: State):
+    UnityPy.set_assetbundle_decrypt_key(state.decrypt_key)
     try:
         if bundle.endswith('.ab'):
             process_bundle(bundle, state)
@@ -190,7 +193,6 @@ def main():
         args.patch = PRESETS[args.preset]
 
     UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
-
     ss = SourceSet()
     ss.add_primary(args.primary, args.obb, args.prerelease)
     ss.add_patch(args.patch, args.version)
@@ -205,7 +207,7 @@ def main():
         logger.error('Output directory not specified')
         sys.exit(1)
 
-    state = State(ss, args.output, args.recode_video, args.nvenc)
+    state = State(ss, args.output, args.decrypt_key, args.recode_video, args.nvenc)
     if any(bundle.endswith('.acb') for bundle in args.bundles) or args.all_audio or args.all:
         state.load_cues()
 
