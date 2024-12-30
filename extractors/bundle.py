@@ -3,6 +3,7 @@ import os
 
 from PIL import Image
 import UnityPy
+from UnityPy.enums import ClassIDType
 
 from .helpers import rewrite_text_asset
 
@@ -11,22 +12,24 @@ logger = logging.getLogger('pgr-assets.extractors.bundle')
 
 def extract_bundle(env: UnityPy.Environment, output_dir: str, allow_binary_table_convert = False):
     for path, obj in env.container.items():
-        if path.endswith(".ttf"):
-            continue
-
         dest = os.path.join(output_dir, *path.split("/"))
         # create dest based on original path
         # make sure that the dir of that path exists
         os.makedirs(os.path.dirname(dest), exist_ok=True)
 
         try:
-            if obj.type.name in ["Texture2D", "Sprite"]:
+            if path.endswith('.ttf'):
+                font = next(o for o in obj.assetsfile.objects.values() if o.type == ClassIDType.Font)
+                with open(dest, "wb") as f:
+                    f.write(bytes(font.read().m_FontData))
+                logger.debug(f"Extracted font {path}")
+            elif obj.type.name in ["Texture2D", "Sprite"]:
                 data = obj.read()
                 save_image(data.image, dest)
                 logger.debug(f"Extracted {path}")
             elif obj.type.name == "TextAsset":
                 data = obj.read()
-                dest, data = rewrite_text_asset(dest, data.script, allow_binary_table_convert=allow_binary_table_convert)
+                dest, data = rewrite_text_asset(dest, data.m_Script.encode('utf-8', 'surrogateescape'), allow_binary_table_convert=allow_binary_table_convert)
                 # path can change a bit
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 with open(dest, "wb") as f:
@@ -41,7 +44,7 @@ def extract_bundle(env: UnityPy.Environment, output_dir: str, allow_binary_table
 def get_text_asset(env: UnityPy.Environment, path: str) -> str:
     obj = env.container[path]
     data = obj.read()
-    _, data = rewrite_text_asset(path, data.script)
+    _, data = rewrite_text_asset(path, data.m_Script.encode('utf-8', 'surrogateescape'))
     return data.decode("utf-8")
 
 
