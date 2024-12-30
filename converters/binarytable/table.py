@@ -97,18 +97,18 @@ class BinaryTable:
                 yield column.name
 
     def csv_row(self, row: List):
-        for key, value in enumerate(row):
-            column = self.columns[key]
-            if type(value) is list:
-                yield from value
+        for key, column in enumerate(self.columns):
+            value = row[key]
             # Int dicts are lists if we squint hard enough
-            elif column.is_int_keyed_dict():
-                for i in range(len(value)):
-                    yield value.get(i, '')
+            if column.is_int_keyed_dict():
+                for i in range(column.list_length):
+                    yield value.get(i + 1, '')
+            elif column.list_length > 0:
+                for i in range(column.list_length):
+                    yield value[i] if i < len(value) else ''
             # Stringy dicts have their own global key list
             elif column.is_dict_type():
-                keys = self.columns[key].dict_keys or []
-                for k in keys:
+                for k in column.dict_keys or []:
                     yield value.get(k, '')
             else:
                 yield value
