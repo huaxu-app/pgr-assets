@@ -49,7 +49,7 @@ class ObbSource(Source):
         env = UnityPy.load(index_blob)
 
         if 'assets/buildtemp/index.bytes' not in env.container:
-            raise Exception(f"Invalid OBB index bundle")
+            raise Exception("Invalid OBB index bundle")
 
         self._index = msgpack.loads(env.container['assets/buildtemp/index.bytes'].read().m_Script.encode('utf-8', 'surrogateescape'))[0]
 
