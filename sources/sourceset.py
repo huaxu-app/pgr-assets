@@ -1,7 +1,7 @@
 import logging
 from typing import Union, Tuple
 
-from sources import PatchCdn, PatchCdnSource, ObbSource, PcStarterSource, PcStarterCdn, Source
+from sources import PatchCdn, PatchCdnSource, ObbSource, PcStarterSource, PcStarterCdn
 
 logger = logging.getLogger('sourceset')
 
@@ -30,7 +30,7 @@ class SourceSet:
         if version is None:
             version = '%d.%d.%d' % self.version()[:3]
         if version is None:
-            raise Exception(f"Patch version required, and could not be inferred from earlier sources")
+            raise Exception("Patch version required, and could not be inferred from earlier sources")
 
         impl = PatchCdnSource(PatchCdn[patch_type], version)
 

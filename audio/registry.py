@@ -1,5 +1,3 @@
-import os.path
-from typing import List
 
 import UnityPy
 

@@ -116,7 +116,7 @@ class PatchCdnSource(Source):
             for v in partial_indices[1].values():
                 self._index.update(v)
         else:
-            raise Exception(f"Failed to find index in patch index bundle")
+            raise Exception("Failed to find index in patch index bundle")
 
         return self._index
 

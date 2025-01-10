@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import sys
-from typing import Set, List, Generator
+from typing import Set, List
 
 import UnityPy
 from tqdm.auto import tqdm

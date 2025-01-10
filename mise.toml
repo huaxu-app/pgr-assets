@@ -1,2 +1,14 @@
+[tools]
+python = "3.13"
+ruff = "latest"
+
 [env]
 _.python.venv = { path = ".venv", create = true }
+
+[tasks.lint]
+description = "Lint the code"
+run = "ruff check"
+
+[tasks.test]
+description = "Run tests"
+run = "python -m unittest"
