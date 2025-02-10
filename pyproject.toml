@@ -12,6 +12,7 @@ dependencies = [
     "python-ffmpeg>=2.0.12",
     "requests>=2.32.3",
     "tqdm>=4.67.1",
+    "typed-argument-parser>=1.10.1",
     "unitypy>=1.20.16",
 ]
 
