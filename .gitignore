@@ -6,3 +6,4 @@ build/
 pgrtemp/
 notebooks/assets
 notebooks/output
+.env

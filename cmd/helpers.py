@@ -25,14 +25,12 @@ class BaseArgs(Tap):
 
     decrypt_key: str = DECRYPTION_KEY # Decryption key to use for asset bundles
 
-def build_source_set(args: BaseArgs, skip_primary=False) -> SourceSet:
+def build_source_set(args: BaseArgs) -> SourceSet:
     UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
 
-    primary = None
-    if not skip_primary:
-        primary = args.primary
-        if args.preset is not None:
-            primary = PRESETS[args.preset]
+    primary = args.primary
+    if args.preset is not None:
+        primary = PRESETS[args.preset]
 
     patch = args.patch
     if args.preset is not None:
@@ -41,9 +39,11 @@ def build_source_set(args: BaseArgs, skip_primary=False) -> SourceSet:
     if patch is None:
         raise ValueError('Patch source must be specified')
 
+    if args.obb is not None and args.version is None:
+        raise ValueError('Version must be specified when using an obb file as the primary source')
+
     source_set = SourceSet()
-    if primary is not None:
-        source_set.add_primary(primary, args.obb, args.prerelease)
+    source_set.add_primary(primary, args.obb, args.prerelease)
     source_set.add_patch(patch, args.version)
 
     return source_set

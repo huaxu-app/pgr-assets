@@ -1,11 +1,15 @@
 import json
+import logging
+
 from UnityPy import classes
 from UnityPy.enums import ClassIDType
 from typing import Optional
 
-from .hacks import apply_hack
+from .quirks import apply_quirk
 from .models import Spine, BoneFollower, SpineInfo
 from converters.unity_to_json import jsonify
+
+logger = logging.getLogger('spine-extractor')
 
 def texture_from_material(mat: classes.Material):
     for (name, tex_env) in mat.m_SavedProperties.m_TexEnvs:
@@ -55,9 +59,8 @@ def crawl(obj: classes.Object, spine: Spine, seen: Optional[set] = None):
         elif script.m_ClassName == 'BoneFollowerGraphic':
             follower = handle_bone_follower(obj)
             spine.bone_followers.append(follower)
-            print(follower)
         elif script.m_ClassName == 'UiObject':
-            print("Got UiObject -> likely Movie Spine")
+            logger.debug("Got UiObject -> likely Movie Spine")
             spine.spine_order_list = [x.path_id for x in obj.ObjList]
             spine.found_size = (1000, 1080)
         elif script.m_ClassName == 'XEffectScaler':
@@ -142,10 +145,10 @@ def handle_skeleton(skeleton_object: classes.MonoBehaviour):
 
 
     if spine.valid():
-        print(spine)
+        logger.debug(f"Found spine: {spine}")
         return spine
     else:
-        print (f"Invalid spine: {spine}")
+        logger.warning(f"Invalid spine: {spine}")
 
 def handle_bone_follower(obj: classes.MonoBehaviour):
     bone_follower = BoneFollower(obj.boneName, obj.skeletonGraphic.read().skeletonDataAsset.read().skeletonJSON.read().m_Name)
@@ -210,8 +213,7 @@ def check_global_scale(obj: classes.Object):
             return scale, pid
     return None, None
 
-def extract_spine(prefab_path: str, obj: classes.Object, output_dir: str, write_json=False):
-    name = prefab_path.removeprefix('assets/product/ui/spine/').removesuffix('.prefab')
+def extract_spine(name: str, obj: classes.Object, output_dir: str, write_json=False):
     spine = Spine(name)
     crawl(obj, spine)
 
@@ -219,7 +221,7 @@ def extract_spine(prefab_path: str, obj: classes.Object, output_dir: str, write_
     if gs_pid is not None:
         if global_scale > 2:
             global_scale /= 100
-        print("-> found global scale", global_scale, 'at path', gs_pid)
+        logger.debug(f"found global scale {global_scale} at path {gs_pid}")
         if global_scale != 1:
             for spine_info in spine.spines:
                 if spine_info.transform_id in gs_pid:
@@ -227,12 +229,12 @@ def extract_spine(prefab_path: str, obj: classes.Object, output_dir: str, write_
                 spine_info.scale *= global_scale
 
     spine.finalize()
-    apply_hack(spine)
+    apply_quirk(spine)
 
     if len(spine.spines) > 0:
         spine.write(output_dir)
     else:
-        print("-> No spines found")
+        logger.debug(f"Processed {name} but no spines found")
         return
 
     if write_json:

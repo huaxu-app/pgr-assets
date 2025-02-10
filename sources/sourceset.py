@@ -49,6 +49,9 @@ class SourceSet:
                 return version
         return None
 
+    def disable_primary(self):
+        self.sources = [source for source in self.sources if isinstance(source, PatchCdnSource)]
+
     def list_all_bundles(self):
         return set(bundle for source in self.sources for bundle in source.bundle_names())
 
