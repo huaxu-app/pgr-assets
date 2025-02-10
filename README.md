@@ -5,13 +5,13 @@
 
 ```bash
 # List assets on global:
-pgr-assets --list
+pgr-assets list
 
 # Switch servers by changing preset: (global, korea, japan, taiwan, china)
-pgr-assets --preset global --list
+pgr-assets list --preset global
 
 # Extract all text assets
-pgr-assets --all-temp --output /path/to/output
+pgr-assets extract --all-temp --output /path/to/output
 ```
 
 ## Usage
