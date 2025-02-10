@@ -47,9 +47,9 @@ def decrypt(content, offset=None, count=None):
     return content
 
 
-def is_utf8(data: memoryview) -> bool:
+def is_utf8(data: bytes) -> bool:
     try:
-        data.tobytes().decode('utf-8')
+        data.decode('utf-8')
         return True
     except UnicodeDecodeError:
         return False

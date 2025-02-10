@@ -44,8 +44,8 @@ class PatchCdn(Enum):
     TW_PC = PatchCdnData('http://prod-twcdn-akamai.punishing.net/prod', 'com.herogame.pc.punishing.grayraven.tw', 'standalone')
 
     # http://prod.zspnsalicdn.yingxiong.com/prod/client/config/com.kurogame.haru.kuro/2.9.0/standalone/config.tab
-    CN = PatchCdnData('http://prod.zspnsalicdn.yingxiong.com/prod', 'com.kurogame.haru.kuro', 'android')
-    CN_PC = PatchCdnData('http://prod.zspnsalicdn.yingxiong.com/prod', 'com.kurogame.haru.kuro', 'standalone')
+    CN = PatchCdnData('http://prod-zspns-volccdn.kurogame.com/prod', 'com.kurogame.haru.kuro', 'android')
+    CN_PC = PatchCdnData('http://prod-zspns-volccdn.kurogame.com/prod', 'com.kurogame.haru.kuro', 'standalone')
 
 
 class PatchCdnSource(Source):

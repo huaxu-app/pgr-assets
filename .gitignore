@@ -4,3 +4,5 @@ dist/
 build/
 .cache.json
 pgrtemp/
+notebooks/assets
+notebooks/output
