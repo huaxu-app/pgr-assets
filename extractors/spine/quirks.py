@@ -1,6 +1,10 @@
+import logging
+
 from .models import Spine
 
-hack_db = {
+logger = logging.getLogger('spine-extractor')
+
+quirks = {
     # Beeg Celica has no size
     'sailika/sailika$': { 'size': (1520, 6340)},
     'sailika/sailika2-rpgmakergame': { 'size': (256, 256)},
@@ -20,27 +24,27 @@ hack_db = {
 
 }
 
-def find_hack(name: str):
+def find_quirk(name: str):
     import re
-    for k, v in hack_db.items():
+    for k, v in quirks.items():
         if re.match(k, name):
-            print(f"-> found hack {v}")
+            logger.debug(f'Applying quirk {v}')
             return v
     return None
 
-def apply_hack(spine: Spine):
-    hack = find_hack(spine.name)
-    if hack is None:
+def apply_quirk(spine: Spine):
+    quirk = find_quirk(spine.name)
+    if quirk is None:
         return
 
-    if hack.get('all_scale') is not None:
+    if quirk.get('all_scale') is not None:
         for s in spine.spines:
-            s.set_scale(hack['all_scale'])
+            s.set_scale(quirk['all_scale'])
 
-    if hack.get('size') is not None:
-        spine.found_size = hack['size']
+    if quirk.get('size') is not None:
+        spine.found_size = quirk['size']
 
-    if hack.get('all_position') is not None:
+    if quirk.get('all_position') is not None:
         for s in spine.spines:
-            s.position = hack['all_position']
+            s.position = quirk['all_position']
 
