@@ -231,12 +231,9 @@ def main():
         listed_bundles = determine_sha1_cache_skip(args.cache, listed_bundles, state)
 
     non_video_bundles = [bundle for bundle in listed_bundles if not bundle.endswith('.usm')]
-    for bundle in listed_bundles:
-        logger.debug(f"Processing {bundle}")
-        process(bundle, state)
-    # if len(non_video_bundles) > 0:
-    #     logger.info(f"Processing {len(non_video_bundles)} non-video bundles")
-    #     execute_in_pool(non_video_bundles, state, args.cache)
+    if len(non_video_bundles) > 0:
+        logger.info(f"Processing {len(non_video_bundles)} non-video bundles")
+        execute_in_pool(non_video_bundles, state, args.cache)
 
     video_bundles = [bundle for bundle in listed_bundles if bundle.endswith('.usm')]
     if len(video_bundles) > 0:
