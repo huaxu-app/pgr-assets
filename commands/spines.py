@@ -61,11 +61,10 @@ def spines_cmd(args: SpinesCommand):
     download_env(args.env_dir, sources)
     env = UnityPy.Environment(args.env_dir)
 
-    if args.only_login:
-        extract_spine('spinelogin/%d.%d' % sources.version()[:2], env.container['assets/product/ui/spine/spinelogin.prefab'].read(), args.output)
-        return
-
     all_prefabs = {k: v for k, v in env.container.items() if k.endswith('.prefab')}
+    if args.only_login:
+        all_prefabs = {'assets/product/ui/spine/spinelogin.prefab': all_prefabs['assets/product/ui/spine/spinelogin.prefab']}
+
     for k, v in all_prefabs.items():
         name = k.removeprefix('assets/product/ui/spine/').removesuffix('.prefab')
         if name == 'spinelogin':

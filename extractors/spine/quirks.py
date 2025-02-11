@@ -22,6 +22,8 @@ quirks = {
     'luxiya-skin-qingrenjie/spineluxiyaskin': { 'size': (1518, 856) },
     '.*autowindow': { 'size': (1518, 856) },
 
+    # Very old login screens
+    r'spinelogin/1\.*': { 'size': (1920, 1080), 'all_pivot': (0.5, 0.5) },
 }
 
 def find_quirk(name: str):
@@ -47,4 +49,8 @@ def apply_quirk(spine: Spine):
     if quirk.get('all_position') is not None:
         for s in spine.spines:
             s.position = quirk['all_position']
+
+    if quirk.get('all_pivot') is not None:
+        for s in spine.spines:
+            s.pivot = quirk['all_pivot']
 
