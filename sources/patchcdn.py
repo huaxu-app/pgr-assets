@@ -59,7 +59,7 @@ class PatchCdnSource(Source):
 
         self._logger.debug("Getting config from patch cdn")
         config = self.get_tab(self._cdn.config_url(version))
-        application_version = config["ApplicationVersion"]
+        application_version = version
         document_version = config["DocumentVersion"]
         self._cdn_url = self._cdn.base_url(application_version, document_version)
         self._logger.debug(f"Using patch cdn {self._cdn_url}")
@@ -109,7 +109,7 @@ class PatchCdnSource(Source):
         env = UnityPy.load(bundle.content)
 
         if 'assets/temp/index.bytes' in env.container:
-            self._index = msgpack.loads(env.container['assets/temp/index.bytes'].read().m_Script.encode('utf-8', 'surrogateescape'))[0]
+            self._index = msgpack.loads(env.container['assets/temp/index.bytes'].read().m_Script.encode('utf-8', 'surrogateescape'), strict_map_key=False)[0]
         elif 'assets/buildtemp/index.bytes' in env.container:
             partial_indices = msgpack.loads(env.container['assets/buildtemp/index.bytes'].read().m_Script.encode('utf-8', 'surrogateescape'), strict_map_key=False)
             self._index = partial_indices[0]

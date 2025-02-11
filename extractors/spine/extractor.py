@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 
 from UnityPy import classes
 from UnityPy.enums import ClassIDType
@@ -202,7 +203,7 @@ def check_global_scale(obj: classes.Object):
 
     for c in obj.m_Component:
         c = c.component.read()
-        if isinstance(c, classes.RectTransform):
+        if isinstance(c, classes.RectTransform) or isinstance(c, classes.Transform):
             scale, pid = c.m_LocalScale.x, {c.object_reader.path_id}
             if len(c.m_Children) == 1 and c.m_Children[0].type == ClassIDType.RectTransform:
                 pid.add(c.m_Children[0].path_id)
@@ -235,8 +236,8 @@ def extract_spine(name: str, obj: classes.Object, output_dir: str, write_json=Fa
         spine.write(output_dir)
     else:
         logger.debug(f"Processed {name} but no spines found")
-        return
 
     if write_json:
+        os.makedirs(f'{output_dir}/{name}', exist_ok=True)
         with open(f'{output_dir}/{name}/jsonified.json', 'w') as f:
             json.dump(jsonify(obj), f, indent=4, default=lambda x: f'<unserializable {type(x).__name__}>')
