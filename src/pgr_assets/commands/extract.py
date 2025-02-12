@@ -8,9 +8,9 @@ from typing import Set, List
 import UnityPy
 from tqdm import tqdm
 
-import extractors
-from audio import CueRegistry, ACB
-from sources import SourceSet
+from pgr_assets import extractors
+from pgr_assets.audio import CueRegistry, ACB
+from pgr_assets.sources import SourceSet
 from .helpers import build_source_set, BaseArgs
 
 logger = logging.getLogger('pgr-assets')
@@ -178,6 +178,7 @@ class ExtractCommand(BaseArgs):
 
 
 def extract_cmd(args: ExtractCommand):
+    args.process_args()
     ss = build_source_set(args)
 
     state = State(ss, args.output, args.decrypt_key, args.recode_video, args.nvenc, args.convert_binary_tables)

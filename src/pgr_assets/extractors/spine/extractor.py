@@ -8,7 +8,7 @@ from typing import Optional
 
 from .quirks import apply_quirk
 from .models import Spine, BoneFollower, SpineInfo
-from converters.unity_to_json import jsonify
+from pgr_assets.converters.unity_to_json import jsonify
 
 logger = logging.getLogger('spine-extractor')
 

@@ -1,7 +1,7 @@
 import logging
 from typing import Union, Tuple
 
-from sources import PatchCdn, PatchCdnSource, ObbSource, PcStarterSource, PcStarterCdn
+from . import PatchCdn, PatchCdnSource, ObbSource, PcStarterSource, PcStarterCdn
 
 logger = logging.getLogger('sourceset')
 

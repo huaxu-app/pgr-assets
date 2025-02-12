@@ -6,8 +6,8 @@ import os
 import UnityPy
 from tqdm.auto import tqdm
 
-from extractors.spine.extractor import extract_spine
-from sources import SourceSet
+from pgr_assets.extractors.spine.extractor import extract_spine
+from pgr_assets.sources import SourceSet
 from .helpers import build_source_set, BaseArgs
 
 logger = logging.getLogger('pgr-assets')
@@ -56,6 +56,7 @@ class SpinesCommand(BaseArgs):
 
 
 def spines_cmd(args: SpinesCommand):
+    args.process_args()
     sources = build_source_set(args)
 
     download_env(args.env_dir, sources)

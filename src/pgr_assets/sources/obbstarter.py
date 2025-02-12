@@ -4,7 +4,7 @@ from zipfile import ZipFile
 import UnityPy
 import msgpack
 
-from sources import Source
+from . import Source
 
 
 class ObbSource(Source):

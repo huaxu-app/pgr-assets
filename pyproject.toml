@@ -16,5 +16,13 @@ dependencies = [
     "unitypy>=1.20.16",
 ]
 
+
 [tool.uv.sources]
 pycricodecs = { git = "https://github.com/BlackNovaTech/PyCriCodecs", rev = "main" }
+
+[project.scripts]
+pgr-assets = "pgr_assets:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

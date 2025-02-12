@@ -3,7 +3,7 @@ from typing import Union, Tuple
 
 import requests
 
-from sources import Source
+from . import Source
 from dataclasses import dataclass
 from enum import Enum
 
