@@ -7,7 +7,7 @@ import UnityPy
 import msgpack
 import requests
 
-from sources import Source
+from . import Source
 
 
 @dataclass

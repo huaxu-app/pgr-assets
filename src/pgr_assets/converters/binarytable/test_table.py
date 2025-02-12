@@ -2,7 +2,7 @@ import io
 import os
 import unittest
 
-from converters.binarytable.table import BinaryTable
+from .table import BinaryTable
 
 script_dir = os.path.dirname(__file__)
 

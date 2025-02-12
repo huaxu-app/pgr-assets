@@ -1,8 +1,8 @@
 
 import UnityPy
 
-import extractors
-from sources import SourceSet
+from pgr_assets import extractors
+from pgr_assets.sources import SourceSet
 
 
 class CueSheet:

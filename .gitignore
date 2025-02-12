@@ -4,6 +4,6 @@ dist/
 build/
 .cache.json
 pgrtemp/
-notebooks/assets
-notebooks/output
+src/pgr-assets/notebooks/assets
+src/pgr-assets/notebooks/output
 .env

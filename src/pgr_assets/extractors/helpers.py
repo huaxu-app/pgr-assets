@@ -2,7 +2,7 @@ import io
 import os
 from typing import Tuple
 
-from converters.binarytable.table import BinaryTable
+from pgr_assets.converters.binarytable.table import BinaryTable
 
 
 def decrypt(content, offset=None, count=None):

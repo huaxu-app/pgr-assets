@@ -3,9 +3,11 @@ from typing import Optional, Literal
 import UnityPy
 from tap import Tap
 
-from sources import SourceSet
+from pgr_assets.sources import SourceSet
 
 DECRYPTION_KEY = 'y5XPvqLOrCokWRIa'
+OLD_DECRYPTION_KEY = 'kurokurokurokuro'
+
 PRESETS = {
     'global': 'EN_PC',
     'korea': 'KR_PC',
