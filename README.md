@@ -1,6 +1,14 @@
 # PGR Assets
 > Backbone for huaxu's asset database
 
+## Installation
+
+This package is not available on PyPI, so you will need to install it from source.
+
+```bash
+pip install pgr_assets@git+https://github.com/huaxu-app/pgr-assets
+```
+
 ## Common usages
 
 ```bash
@@ -12,42 +20,8 @@ pgr-assets list --preset global
 
 # Extract all text assets
 pgr-assets extract --all-temp --output /path/to/output
-```
 
-## Usage
-
-```
-usage: pgr-assets.py [-h] [--preset {global,korea,japan,taiwan,china}] [--prerelease] [--primary {obb,EN_PC,KR_PC,JP_PC,TW_PC,CN_PC}] [--obb OBB] [--patch {EN,EN_PC,KR,KR_PC,JP,JP_PC,TW,TW_PC,CN,CN_PC}] [--version VERSION] [--output OUTPUT]
-                     [--decrypt-key DECRYPT_KEY] [--list] [--all-temp] [--all-audio] [--all-video] [--all-images] [--recode-video] [--nvenc] [--all] [--cache CACHE] [--write-settings]
-                     [bundles ...]
-
-Extracts the assets required for kennel
-
-positional arguments:
-  bundles               Bundles to extract
-
-options:
-  -h, --help            show this help message and exit
-  --preset {global,korea,japan,taiwan,china}
-  --prerelease          Use the prerelease patch source, if available
-  --primary {obb,EN_PC,KR_PC,JP_PC,TW_PC,CN_PC}
-  --obb OBB             Path to obb file. Only valid when --primary is set to obb.
-  --patch {EN,EN_PC,KR,KR_PC,JP,JP_PC,TW,TW_PC,CN,CN_PC}
-  --version VERSION     The client version to use. Inferred by default.
-  --output OUTPUT       Output directory to use. Required for extraction, not list.
-  --decrypt-key DECRYPT_KEY
-                        Decryption key to use
-  --list                List all available bundles
-  --all-temp            Extract all temp (text) bundles
-  --all-audio           Extract all audio bundles
-  --all-video           Extract all video bundles
-  --all-images          Extract all image bundles
-  --recode-video        Recode h264 in videos
-  --nvenc               Use NVenc to recode
-  --all                 Extract all i can find
-  --cache CACHE         Path to sha1 cache file
-  --write-settings      Write a small settings file to the output directory containing preset and version
-
+# For full usage instructions see the help output of the various commands
 ```
 
 ## Requirements
@@ -95,7 +69,3 @@ these alternatives come with major downsides and hacking around their non-offici
 
 In the end, I really didn't feel like building parsers for Unity Asset Bundles and Criware's formats,
 and wanted to just focus on getting shit done.
-
-Just run `just build` to build a pyinstaller'd version of pgr-assets (`dist/pgr-assets`) that you can use like a normal executable
-It's what I do.
-
