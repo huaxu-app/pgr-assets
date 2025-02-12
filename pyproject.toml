@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "msgpack>=1.1.0",
     "pillow>=11.0.0",
-    "pycricodecs @ https://github.com/huaxu-app/pgr-assets.git",
+    "pycricodecs @ git+https://github.com/BlackNovaTech/PyCriCodecs",
     "pycryptodome>=3.21.0",
     "python-ffmpeg>=2.0.12",
     "requests>=2.32.3",
