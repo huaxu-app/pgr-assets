@@ -71,7 +71,7 @@ class BoneFollower:
         return {
             "bone": self.bone,
             "skeleton": self.skeleton,
-            "spines": list(self.spines),
+            "spines": sorted(self.spines),
         }
 
 @dataclass
@@ -81,6 +81,7 @@ class Spine:
     spine_order_list: list[str]|None = None
     found_size: Tuple[int, int]|None = None
     bone_followers: list[BoneFollower] = field(default_factory=list)
+    render_quirk: str|None = None
 
     def size(self):
         if self.found_size is not None:
@@ -117,12 +118,17 @@ class Spine:
             spine.pivot = (0.5, 0)
 
     def to_json(self):
-        return {
+        obj = {
             "name": self.name,
             "spines": [x.to_json() for x in self.spines],
             "size": self.size(),
             "boneFollowers": [x.to_json() for x in self.bone_followers],
         }
+
+        if self.render_quirk is not None:
+            obj["renderQuirk"] = self.render_quirk
+
+        return obj
 
     def write(self, output_dir: str):
         subdir = os.path.join(output_dir, self.name)
