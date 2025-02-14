@@ -214,9 +214,11 @@ def check_global_scale(obj: classes.Object):
             return scale, pid
     return None, None
 
-def extract_spine(name: str, obj: classes.Object, output_dir: str, write_json=False):
+def extract_spine(name: str, obj: list[classes.Object], output_dir: str, write_json=False):
     spine = Spine(name)
-    crawl(obj, spine)
+
+    for obj in obj:
+        crawl(obj, spine)
 
     global_scale, gs_pid = check_global_scale(obj)
     if gs_pid is not None:
@@ -224,10 +226,11 @@ def extract_spine(name: str, obj: classes.Object, output_dir: str, write_json=Fa
             global_scale /= 100
         logger.debug(f"found global scale {global_scale} at path {gs_pid}")
         if global_scale != 1:
-            for spine_info in spine.spines:
-                if spine_info.transform_id in gs_pid:
-                    continue
-                spine_info.scale *= global_scale
+            if any(x.transform_id in gs_pid for x in spine.spines):
+                logger.debug("Found spine with global scale, skipping")
+            else:
+                for spine_info in spine.spines:
+                    spine_info.scale *= global_scale
 
     spine.finalize()
     apply_quirk(spine)

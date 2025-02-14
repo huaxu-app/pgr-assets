@@ -7,6 +7,7 @@ import UnityPy
 from tqdm.auto import tqdm
 
 from pgr_assets.extractors.spine.extractor import extract_spine
+from pgr_assets.extractors.spine import quirks
 from pgr_assets.sources import SourceSet
 from .helpers import build_source_set, BaseArgs
 
@@ -50,6 +51,7 @@ class SpinesCommand(BaseArgs):
     env_dir: str = '.env'  # Directory to use for storing the Unity environment
     output: str  # Directory to output the extracted spines to
     only_login: bool = False
+    with_json: bool = False
 
     def configure(self) -> None:
         self.set_defaults(func=spines_cmd)
@@ -66,9 +68,24 @@ def spines_cmd(args: SpinesCommand):
     if args.only_login:
         all_prefabs = {'assets/product/ui/spine/spinelogin.prefab': all_prefabs['assets/product/ui/spine/spinelogin.prefab']}
 
+
     for k, v in all_prefabs.items():
         name = k.removeprefix('assets/product/ui/spine/').removesuffix('.prefab')
         if name == 'spinelogin':
             name += '/%d.%d' % sources.version()[:2]
-        logger.info('Extracting spine from %s', name)
-        extract_spine(name, v.read(), args.output)
+
+        if quirks.should_skip(name):
+            logger.info('Skipping %s', name)
+            continue
+
+        if (glue := quirks.find_glue(name)) is not None:
+            logger.info('Quirk triggered: glue %s', glue.name)
+            objects = [env.container['assets/product/ui/spine/' + layer + '.prefab'].read() for layer in glue.layers]
+            extract_spine(glue.name, objects, args.output, write_json=args.with_json)
+        else:
+            logger.info('Extracting spine from %s', name)
+            try:
+                extract_spine(name, [v.read()], args.output, write_json=args.with_json)
+            except Exception as e:
+                logger.error(f"Failed to extract {name}: {e}")
+                continue
