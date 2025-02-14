@@ -13,16 +13,17 @@ PRESETS = {
     'korea': 'KR_PC',
     'japan': 'JP_PC',
     'taiwan': 'TW_PC',
-    'china': 'CN_PC'
+    'china': 'CN_PC',
+    'china-beta': 'CN_PC_BETA',
 }
 
 class BaseArgs(Tap):
-    preset: Optional[Literal['global', 'korea', 'japan', 'taiwan', 'china']] = None # Preset to use for primary and patch
+    preset: Optional[Literal['global', 'korea', 'japan', 'taiwan', 'china', 'china-beta']] = None # Preset to use for primary and patch
     prerelease: bool = False # Use the prerelease patch source, if available
 
-    primary: Optional[Literal['obb', 'EN_PC', 'KR_PC', 'JP_PC', 'TW_PC', 'CN_PC']] = None # Primary source to use
+    primary: Optional[Literal['obb', 'EN_PC', 'KR_PC', 'JP_PC', 'TW_PC', 'CN_PC', 'CN_PC_BETA']] = None # Primary source to use
     obb: Optional[str] = None # Path to obb file. Only valid when primary is set to obb
-    patch: Optional[Literal['EN', 'EN_PC', 'KR', 'KR_PC', 'JP', 'JP_PC', 'TW', 'TW_PC', 'CN', 'CN_PC']] = None # Patch source to use
+    patch: Optional[Literal['EN', 'EN_PC', 'KR', 'KR_PC', 'JP', 'JP_PC', 'TW', 'TW_PC', 'CN', 'CN_PC', 'CN_PC_BETA']] = None # Patch source to use
     version: Optional[str] = None # The client version to use. Inferred by default
 
     decrypt_key: str = DECRYPTION_KEY # Decryption key to use for asset bundles
