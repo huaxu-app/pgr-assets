@@ -18,6 +18,7 @@ quirks = {
 
     'uispine/uiturntable/uiturntablesailikacall': { 'size': (512, 512) },
     'uilivwarmactivityvinylspine': { 'size': (200, 200) },
+    'uispine/uisummersigninmainspine/bg/uisummerspinebg': { 'size': (3800, 1080), 'all_scale': 0.5 },
 
     '2-11spine/lamiyaskin/lamiyaskinautowindow': { 'all_scale': 0.45, 'size': (1518, 856) },
     'lifu/chaolifudarkskin/chaolifudarkskinwindow': { 'size': (1518, 856) },
