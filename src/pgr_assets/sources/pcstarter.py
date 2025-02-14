@@ -26,6 +26,7 @@ class PcStarterCdn(Enum):
     JP_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 282, '50007_NxWGZ0d254oWqZKuuL6szOK7WRLPt668', False)
     TW_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 279, '50006', False)
     CN_PC = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/', 148, 10001, False)
+    CN_PC_BETA = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/', 148, 7, False)
 
 
 class PcStarterSource(Source):
@@ -88,7 +89,7 @@ class PcStarterSource(Source):
         return resources
 
     def bundle_names(self):
-        return self.index().keys()
+        return []
 
     @staticmethod
     def _get_json(url: str) -> dict:

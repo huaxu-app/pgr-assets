@@ -47,6 +47,9 @@ class PatchCdn(Enum):
     CN = PatchCdnData('http://prod-zspns-volccdn.kurogame.com/prod', 'com.kurogame.haru.kuro', 'android')
     CN_PC = PatchCdnData('http://prod-zspns-volccdn.kurogame.com/prod', 'com.kurogame.haru.kuro', 'standalone')
 
+    CN_BETA = PatchCdnData('http://dev-zspns-volccdn.kurogame.com/dev', 'com.kurogame.haru.pioneer', 'android')
+    CN_PC_BETA = PatchCdnData('http://dev-zspns-volccdn.kurogame.com/dev', 'com.kurogame.haru.pioneer', 'standalone')
+
 
 class PatchCdnSource(Source):
     _logger = logging.getLogger('PatchCdnSource')
