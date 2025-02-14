@@ -23,7 +23,7 @@ class BaseArgs(Tap):
 
     primary: Optional[Literal['obb', 'EN_PC', 'KR_PC', 'JP_PC', 'TW_PC', 'CN_PC', 'CN_PC_BETA']] = None # Primary source to use
     obb: Optional[str] = None # Path to obb file. Only valid when primary is set to obb
-    patch: Optional[Literal['EN', 'EN_PC', 'KR', 'KR_PC', 'JP', 'JP_PC', 'TW', 'TW_PC', 'CN', 'CN_PC', 'CN_PC_BETA']] = None # Patch source to use
+    patch: Optional[Literal['EN', 'EN_PC', 'KR', 'KR_PC', 'JP', 'JP_PC', 'TW', 'TW_PC', 'CN', 'CN_PC', 'CN_PC_BETA', 'CN_BETA']] = None # Patch source to use
     version: Optional[str] = None # The client version to use. Inferred by default
 
     decrypt_key: str = DECRYPTION_KEY # Decryption key to use for asset bundles
