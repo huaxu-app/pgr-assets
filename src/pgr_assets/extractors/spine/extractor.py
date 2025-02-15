@@ -129,6 +129,9 @@ def handle_skeleton(skeleton_object: classes.MonoBehaviour):
                 if tex is not None:
                     spine.textures.append(tex)
 
+            if hasattr(obj, '_animationName'):
+                spine.default_animation = obj._animationName
+
             skeleton_data_asset = obj.skeletonDataAsset.read()
 
             skeleton_json = skeleton_data_asset.skeletonJSON.read()
