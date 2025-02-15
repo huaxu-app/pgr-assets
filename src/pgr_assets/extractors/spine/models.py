@@ -3,6 +3,7 @@ import json
 from typing import Tuple, List
 from dataclasses import dataclass, field
 from PIL import Image
+from collections import Counter
 
 @dataclass
 class SpineInfo:
@@ -16,6 +17,7 @@ class SpineInfo:
     order: int = 0
     ids: set[int] = field(default_factory=set)
     transform_id: int = 0
+    default_animation: str | None = None
 
     textures: List[Tuple[str, Image]] = field(default_factory=list)
     atlas: str | None = None
@@ -127,6 +129,10 @@ class Spine:
 
         if self.render_quirk is not None:
             obj["renderQuirk"] = self.render_quirk
+
+        animation_counts = Counter(x.default_animation for x in self.spines if x.default_animation is not None)
+        if len(animation_counts) > 0:
+            obj["defaultAnimation"] = animation_counts.most_common(1)[0][0]
 
         return obj
 
