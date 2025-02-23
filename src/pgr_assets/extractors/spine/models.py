@@ -114,8 +114,14 @@ class Spine:
         if self.spine_order_list is None:
             return
 
+        # First round of these was special
+        if 'uimoviebiankaskin' in self.name:
+            self.spine_order_list = self.spine_order_list[::-1]
+
         for spine in self.spines:
-            spine.position = (0, 0)
+            # First round of these was special
+            if 'uimoviebiankaskin' not in self.name:
+                spine.position = (0, 0)
             spine.scale = 1
             spine.pivot = (0.5, 0)
 
