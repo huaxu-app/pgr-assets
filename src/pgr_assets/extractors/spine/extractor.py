@@ -115,6 +115,10 @@ def handle_skeleton(skeleton_object: classes.MonoBehaviour):
             spine.set_scale(obj.m_LocalScale.x)
             spine.pivot = (obj.m_Pivot.x, obj.m_Pivot.y)
             spine.transform_id = obj.object_reader.path_id
+            if obj.m_Father is not None and obj.m_Father.path_id != 0:
+                father = obj.m_Father.read()
+                if isinstance(father, classes.RectTransform):
+                    spine.position = (spine.position[0] + father.m_LocalPosition.x, spine.position[1] + father.m_LocalPosition.y)
         elif (sortOrder := getattr(obj, 'm_SortingOrder', None)) is not None:
             spine.order = sortOrder
 
