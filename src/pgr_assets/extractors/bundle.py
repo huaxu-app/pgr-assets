@@ -41,10 +41,10 @@ def extract_bundle(env: UnityPy.Environment, output_dir: str, allow_binary_table
             logger.error(f"Failed to extract {path}: {e}")
 
 
-def get_text_asset(env: UnityPy.Environment, path: str) -> str:
+def get_text_asset(env: UnityPy.Environment, path: str, allow_binary_table_convert = False) -> str:
     obj = env.container[path]
     data = obj.read()
-    _, data = rewrite_text_asset(path, data.m_Script.encode('utf-8', 'surrogateescape'))
+    _, data = rewrite_text_asset(path, data.m_Script.encode('utf-8', 'surrogateescape'), allow_binary_table_convert=allow_binary_table_convert)
     return data.decode("utf-8")
 
 

@@ -5,6 +5,8 @@ from . import PatchCdn, PatchCdnSource, ObbSource, PcStarterSource, PcStarterCdn
 
 logger = logging.getLogger('sourceset')
 
+class BlobNotFoundException(Exception):
+    pass
 
 class SourceSet:
     def __init__(self):
@@ -73,7 +75,7 @@ class SourceSet:
         blob = self.bundle_to_blob(bundle)
         # First we try to resolve bundle -> blob, but use the last source that has it
         if blob is None:
-            raise Exception(f"Failed to resolve bundle {bundle}")
+            raise BlobNotFoundException(f"Failed to resolve bundle {bundle}")
 
         logger.debug(f"Bundle {bundle} -> blob {blob}")
 
@@ -86,4 +88,4 @@ class SourceSet:
                 except Exception as e:
                     logger.error(f"Failed to get blob {blob} from {source}: {e}")
 
-        raise Exception(f"Failed to resolve blob {blob}")
+        raise BlobNotFoundException(f"Failed to resolve blob {blob}")
