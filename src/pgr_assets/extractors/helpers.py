@@ -54,19 +54,19 @@ def is_utf8(data: bytes) -> bool:
     except UnicodeDecodeError:
         return False
 
-def convert_to_csv(data: memoryview) -> bytearray:
+def convert_to_csv(data: memoryview, new_fixnum=False) -> bytearray:
     try:
         output = io.StringIO(newline='')
-        table = BinaryTable(io.BytesIO(data))
+        table = BinaryTable(io.BytesIO(data), new_fixnum=new_fixnum)
         table.to_csv(output)
         return bytearray(output.getvalue().encode())
     except Exception as e:
         raise e
 
-def rewrite_text_asset(path: str, data: memoryview, allow_binary_table_convert=False) -> Tuple[str, bytearray]:
+def rewrite_text_asset(path: str, data: memoryview, allow_binary_table_convert=False, new_fixnum=False) -> Tuple[str, bytearray]:
     if '/temp/bytes/' in path:
         if allow_binary_table_convert:
-            data = convert_to_csv(data)
+            data = convert_to_csv(data, new_fixnum=new_fixnum)
             path = path.replace('.tab.bytes', '.csv')
             if path.endswith('.bytes'):
                 # Extremely weird case where its usually a directory

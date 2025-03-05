@@ -26,6 +26,7 @@ class State:
     nvenc: bool
     decrypt_key: str
     convert_binary_tables: bool
+    new_fixnum: bool
 
     def __init__(self, sources: SourceSet, output_dir: str, decrypt_key: str, recode_video: bool = False,
                  nvenc: bool = False, convert_binary_tables: bool = False):
@@ -37,15 +38,20 @@ class State:
         self.decrypt_key = decrypt_key
         self.convert_binary_tables = convert_binary_tables
 
+        self.new_fixnum = sources.version()[:2] >= (3, 3)
+        if self.new_fixnum:
+            logger.debug("Switching to new fixnum style due to version constraint")
+
     def load_cues(self):
         self.cues.init(self.sources)
+
 
 
 def process_bundle(bundle: str, state: State):
     bundle_data = state.sources.find_bundle(bundle)
     env = UnityPy.load(bundle_data)
     logger.debug(f"Extracting {bundle}")
-    extractors.extract_bundle(env, output_dir=state.output_dir, allow_binary_table_convert=state.convert_binary_tables)
+    extractors.extract_bundle(env, output_dir=state.output_dir, allow_binary_table_convert=state.convert_binary_tables, new_fixnum=state.new_fixnum)
 
 
 def process_audio(bundle: str, state: State):

@@ -1,6 +1,7 @@
 import io
 import os
 import unittest
+from decimal import Decimal
 
 from .table import BinaryTable
 
@@ -62,3 +63,63 @@ class TableTest(unittest.TestCase):
         with open(os.path.join(script_dir, 'assets/areastage.csv'), 'r') as f:
             expected = f.read().splitlines()
         self.assertEqual(expected, string)
+
+
+
+    def test_old_style_fixnum(self):
+        with open(os.path.join(script_dir, 'assets/npcsettletime.old.tab.bytes'), 'rb') as f:
+            table = BinaryTable(f)
+            rows = table.rows
+
+        self.assertEqual(81, len(rows))
+        # First row had 0 as SettleTime
+        row = rows[0]
+        self.assertEqual(Decimal('0'), row[3])
+
+        # Row 17 was the first with a non-zero
+        row = rows[16]
+        self.assertEqual(Decimal('5.5'), row[3])
+
+        # Row 51 was with 2 decimals
+        row = rows[50]
+        self.assertEqual(Decimal('4.15'), row[3])
+
+
+    def test_new_style_fixnum(self):
+        with open(os.path.join(script_dir, 'assets/npcsettletime.tab.bytes'), 'rb') as f:
+            table = BinaryTable(f, new_fixnum=True)
+            rows = table.rows
+
+        self.assertEqual(81, len(rows))
+        # First row had 0 as SettleTime
+        row = rows[0]
+        self.assertEqual(Decimal('0'), row[3])
+
+        # Row 17 was the first with a non-zero
+        row = rows[16]
+        self.assertEqual(Decimal('5.5'), row[3])
+
+        # Row 51 was with 2 decimals
+        row = rows[50]
+        self.assertEqual(Decimal('4.15'), row[3])
+
+
+    def test_old_style_fixnum_npcsearcher(self):
+        with open(os.path.join(script_dir, 'assets/npcsearcher.old.bytes'), 'rb') as f:
+            table = BinaryTable(f)
+            rows = table.rows
+
+        # has both a negative number and a small number
+        row = rows[0]
+        self.assertEqual(Decimal('-4'), row[4])
+        self.assertEqual(Decimal('1'), row[5])
+
+    def test_new_style_fixnum_npcsearcher(self):
+        with open(os.path.join(script_dir, 'assets/npcsearcher.bytes'), 'rb') as f:
+            table = BinaryTable(f, new_fixnum=True)
+            rows = table.rows
+
+        # has both a negative number and a small number
+        row = rows[0]
+        self.assertEqual(Decimal('-4'), row[4])
+        self.assertEqual(Decimal('1'), row[5])

@@ -43,8 +43,8 @@ class BinaryTable:
 
     rows: List
 
-    def __init__(self, data: BinaryIO):
-        self.reader = Reader(data)
+    def __init__(self, data: BinaryIO, new_fixnum = False):
+        self.reader = Reader(data, new_fixnum=new_fixnum)
         self.info_length = self.reader.read_i32()
         self.columns = []
 

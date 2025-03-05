@@ -9,9 +9,12 @@ FLOAT_TO_INT = 10_000
 
 class Reader:
     file: BinaryIO
+    new_fixnum: bool
 
-    def __init__(self, file: BinaryIO):
+    # New style fixnum is from 3.3.0 (Jetavie) onwards
+    def __init__(self, file: BinaryIO, new_fixnum=False):
         self.file = file
+        self.new_fixnum = new_fixnum
 
     def read_bytes(self, size):
         return self.file.read(size)
@@ -118,17 +121,45 @@ class Reader:
         return self._read_dict(self.read_int, self.read_float)
 
     def read_fix(self):
-        n = self.read_string()
-        if n == '':
+        # Option 1: old style:
+        # Either empty (0x00) or string (with 0x00 terminator)
+        # behavior maps either way, assume that if first byte is actually NUL we don't have to do anything
+        if not self.new_fixnum:
+            n = self.read_string()
+            if n == '':
+                return 0
+            return Decimal(n)
+
+        # Option 2: new style
+        # uLEB128 encoded number followed by an u8
+        # the u8 indicates sign
+        num = Decimal(self.read_leb128())
+        if num == 0:
             return 0
-        return Decimal(n)
+
+        shift = self.read_bytes(1)[0]
+        flip_sign = bool(shift & 0x80)
+        shift = shift & (0x80 - 1)
+
+        num = num.scaleb(-1 * shift)
+        if flip_sign:
+            return -num
+        return num
 
     def read_list_fix(self):
         count = self.read_int()
         return [self.read_fix() for _ in range(count)]
 
+    def peek_byte(self):
+        b = self.read_bytes(1)
+        self.move(-1)
+        return b[0]
+
     def seek(self, position, from_where=os.SEEK_SET):
         self.file.seek(position, from_where)
+
+    def move(self, offset):
+        self.seek(offset, from_where=os.SEEK_CUR)
 
 
 
