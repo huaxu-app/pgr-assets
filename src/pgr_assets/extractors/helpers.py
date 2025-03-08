@@ -18,7 +18,7 @@ def decrypt(content, offset=None, count=None):
          41, 136, 223, 50, 163, 97, 251, 174, 59, 59, 147, 237, 177, 31, 159, 52, 243, 245, 247, 148, 139, 21, 92, 139,
          80, 47, 4, 105, 59, 227, 220, 180, 231, 176, 187, 205, 203, 148, 121, 98, 90, 87, 131, 245, 3, 63, 239, 57,
          117, 102, 134, 40, 172, 60, 128, 108, 102, 216, 247, 133, 102])
-    content = content.copy()
+    content = bytearray(content)
     if offset is None:
         offset = 0
     if count is None:
@@ -86,7 +86,7 @@ def rewrite_text_asset(path: str, data: memoryview, allow_binary_table_convert=F
     path = path_without_bytes
     ext = os.path.splitext(path)[1]
 
-    if ext == ".lua":
+    if ext == ".lua" and not is_utf8(data):
         return path, decrypt(data)
 
     return path, data
