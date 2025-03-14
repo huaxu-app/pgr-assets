@@ -72,7 +72,7 @@ def spines_cmd(args: SpinesCommand):
     for k, v in all_prefabs.items():
         name = k.removeprefix('assets/product/ui/spine/').removesuffix('.prefab')
         if name == 'spinelogin':
-            name += '/%d.%d' % sources.version()[:2]
+            name += '/%d-%d' % sources.version()[:2]
 
         if quirks.should_skip(name):
             logger.info('Skipping %s', name)

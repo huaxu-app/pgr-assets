@@ -39,10 +39,10 @@ quirks = {
     'uihitmousespine': { 'all_scale': 1, 'size': (1000, 1000), 'all_pivot': (0.5, 0.5) },
 
     # Very old login screens
-    r'spinelogin/1.18': { 'size': (1920, 1080), 'all_pivot': (0.5, 0.5), 'all_position': (6, 20) },
-    r'spinelogin/1.21': { 'size': (1920, 1080), 'all_pivot': (0.5, 0.5), 'all_position': (0, -90) },
-    r'spinelogin/1.22': { 'size': (1920, 1080), 'all_pivot': (0.5, 0.5), 'all_position': (0, 40) },
-    r'spinelogin/1\.*': { 'size': (1920, 1080), 'all_pivot': (0.5, 0.5) },
+    r'spinelogin/1-18': { 'size': (1920, 1080), 'all_pivot': (0.5, 0.5), 'all_position': (6, 20) },
+    r'spinelogin/1-21': { 'size': (1920, 1080), 'all_pivot': (0.5, 0.5), 'all_position': (0, -90) },
+    r'spinelogin/1-22': { 'size': (1920, 1080), 'all_pivot': (0.5, 0.5), 'all_position': (0, 40) },
+    r'spinelogin/1-*': { 'size': (1920, 1080), 'all_pivot': (0.5, 0.5) },
 }
 
 @dataclasses.dataclass
