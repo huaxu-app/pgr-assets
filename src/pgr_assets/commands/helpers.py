@@ -6,6 +6,7 @@ from tap import Tap
 from pgr_assets.sources import SourceSet
 
 DECRYPTION_KEY = 'y5XPvqLOrCokWRIa'
+#DECRYPTION_KEY = 'XxecodrPeGaka2e6'
 OLD_DECRYPTION_KEY = 'kurokurokurokuro'
 
 PRESETS = {

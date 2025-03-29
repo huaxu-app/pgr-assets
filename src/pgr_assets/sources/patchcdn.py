@@ -136,8 +136,8 @@ class PatchCdnSource(Source):
             raise Exception(f"Failed to download raw {url} - {resp.status_code}")
 
         data = {}
-        for line in resp.text.splitlines(False):
-            if line == '':
+        for line in resp.content.decode('utf-8').splitlines(False):
+            if line.strip() == '':
                 continue
             key, _, value = line.split('\t')
             data[key] = value
