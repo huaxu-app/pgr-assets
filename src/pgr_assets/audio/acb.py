@@ -43,9 +43,14 @@ class ACB(UTF):
 
     def get_waveform_for_cue_idx(self, idx: int) -> int:
         # Grab the synth reference
-        synth_idx = self.payload[0]['CueTable'][idx]['ReferenceIndex'][1]
-        waveform_reference = self.payload[0]['SynthTable'][synth_idx]['ReferenceItems'][1]
-        return struct.unpack('>H', waveform_reference[2:])[0]
+        reference_index = self.payload[0]['CueTable'][idx]['ReferenceIndex'][1]
+        # logger.debug(f"Cue[{idx}]: ReferenceIndex={reference_index}")
+        synth_reference_items = self.payload[0]['SynthTable'][reference_index]['ReferenceItems'][1]
+        waveform_index = struct.unpack('>H', synth_reference_items[2:])[0]
+        # logger.debug(f"Synth[{reference_index}]: Index={waveform_index}")
+        waveform_id = self.payload[0]['WaveformTable'][waveform_index]['StreamAwbId'][1]
+        # logger.debug(f"Waveform[{waveform_index}]: Id={waveform_id}")
+        return waveform_id
 
     def extract(self, key: int, dirname: str = "", encode=False):
         """ Extracts audio files in an AWB/ACB without preserving filenames. """
@@ -55,13 +60,14 @@ class ACB(UTF):
         # Have to do this because the index one is broken
         waveforms = list(self.awb.getfiles())
 
-        for cue_name_entry in self.payload[0]['CueNameTable']:
+        tables = self.payload[0]
+
+        for cue_name_entry in tables['CueNameTable']:
             cue_name = str(cue_name_entry['CueName'][1]).lower()
             cue_idx = cue_name_entry['CueIndex'][1]
+            # logger.debug(f"CueName[{id}]: CueIndex={cue_idx}, CueName={cue_name}")
             try:
-                waveform_reference_idx = self.get_waveform_for_cue_idx(cue_idx)
-
-                data = waveforms[waveform_reference_idx]
+                data = waveforms[self.get_waveform_for_cue_idx(cue_idx)]
                 audio = HCA(data, key=key, subkey=self.awb.subkey).decode()
 
                 if encode:
