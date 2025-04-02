@@ -34,14 +34,14 @@ class PatchCdn(Enum):
     EN = PatchCdnData('http://prod-encdn-volcdn.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en', 'android')
     EN_PC = PatchCdnData('http://prod-encdn-volcdn.kurogame.net/prod', 'com.kurogame.punishing.grayraven.en.pc',
                          'standalone')
-    KR = PatchCdnData('http://prod-krcdn-llt.punishing.net/prod', 'com.herogame.punishing.grayraven.kr', 'android')
-    KR_PC = PatchCdnData('http://prod-krcdn-llt.punishing.net/prod', 'com.herogame.pc.punishing.grayraven.kr', 'standalone')
+    KR = PatchCdnData('http://prod-krcdn-volcdn.kurogame.net/prod', 'com.herogame.punishing.grayraven.kr', 'android')
+    KR_PC = PatchCdnData('http://prod-krcdn-volcdn.kurogame.net/prod', 'com.herogame.pc.punishing.grayraven.kr', 'standalone')
 
-    JP = PatchCdnData('http://prod-jpcdn-cf.punishing.net/prod', 'com.herogame.gplay.punishing.grayraven.jp', 'android')
-    JP_PC = PatchCdnData('http://prod-jpcdn-cf.punishing.net/prod', 'com.herogame.pc.punishing.grayraven.jp', 'standalone')
+    JP = PatchCdnData('http://prod-jpcdn-volcdn.kurogame.net/prod', 'com.herogame.gplay.punishing.grayraven.jp', 'android')
+    JP_PC = PatchCdnData('http://prod-jpcdn-volcdn.kurogame.net/prod', 'com.herogame.pc.punishing.grayraven.jp', 'standalone')
 
-    TW = PatchCdnData('http://prod-twcdn-akamai.punishing.net/prod', 'com.herogame.gplay.punishing.grayraven.tw', 'android')
-    TW_PC = PatchCdnData('http://prod-twcdn-akamai.punishing.net/prod', 'com.herogame.pc.punishing.grayraven.tw', 'standalone')
+    TW = PatchCdnData('http://prod-twcdn-volcdn.kurogame.net/prod', 'com.herogame.gplay.punishing.grayraven.tw', 'android')
+    TW_PC = PatchCdnData('http://prod-twcdn-volcdn.kurogame.net/prod', 'com.herogame.pc.punishing.grayraven.tw', 'standalone')
 
     # http://prod.zspnsalicdn.yingxiong.com/prod/client/config/com.kurogame.haru.kuro/2.9.0/standalone/config.tab
     CN = PatchCdnData('http://prod-zspns-volccdn.kurogame.com/prod', 'com.kurogame.haru.kuro', 'android')
