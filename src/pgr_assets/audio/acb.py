@@ -41,11 +41,44 @@ class ACB(UTF):
 
         self.awb = AWB(self.payload[0]['AwbFile'][1])
 
-    def get_waveform_for_cue_idx(self, idx: int) -> int:
+    def get_waveform_for_cue_idx(self, idx: int) -> int|None:
         # Grab the synth reference
-        synth_idx = self.payload[0]['CueTable'][idx]['ReferenceIndex'][1]
-        waveform_reference = self.payload[0]['SynthTable'][synth_idx]['ReferenceItems'][1]
-        return struct.unpack('>H', waveform_reference[2:])[0]
+        cue_entry = self.payload[0]['CueTable'][idx]
+        sequence_index = cue_entry['ReferenceIndex'][1]
+        reference_type = cue_entry['ReferenceType'][1]
+        # logger.debug(f"Cue[{idx}]: ReferenceType={reference_type}, ReferenceIndex={sequence_index}")
+        if reference_type != 3:
+            raise RuntimeError(f"Reference type {reference_type} not supported for cue {idx}")
+
+        sequence = self.payload[0]['SequenceTable'][sequence_index]
+        num_tracks = sequence['NumTracks'][1]
+        if num_tracks == 0:
+            return None
+        track_index = struct.unpack('>H', sequence['TrackIndex'][1][:2])[0]
+        # logger.debug(f"Sequence[{sequence_index}]: NumTracks={num_tracks}, TrackIndex={track_index}")
+
+        track = self.payload[0]['TrackTable'][track_index]
+        event_index = track['EventIndex'][1]
+        # logger.debug(f"Track[{track_index}]: EventIndex={event_index}")
+
+        track_event = self.payload[0]['TrackEventTable'][event_index]
+        command = track_event['Command'][1]
+        # Kinda unsure about this one
+        synth_index = struct.unpack('<L', command[-4:])[0]
+        # logger.debug(f"TrackEvent[{event_index}]: SynthIndex={synth_index}")
+
+        synth_reference_items = self.payload[0]['SynthTable'][synth_index]['ReferenceItems'][1]
+        waveform_index = struct.unpack('>H', synth_reference_items[2:])[0]
+        # logger.debug(f"Synth[{sequence_index}]: Index={waveform_index}")
+
+        waveform = self.payload[0]['WaveformTable'][waveform_index]
+        streaming = waveform['Streaming'][1] > 0
+        if streaming:
+            waveform_id = waveform['StreamAwbId'][1]
+        else:
+            waveform_id = waveform['MemoryAwbId'][1]
+        # logger.debug(f"Waveform[{waveform_index}]: Id={waveform_id}, Streaming={streaming}")
+        return waveform_id
 
     def extract(self, key: int, dirname: str = "", encode=False):
         """ Extracts audio files in an AWB/ACB without preserving filenames. """
@@ -55,13 +88,18 @@ class ACB(UTF):
         # Have to do this because the index one is broken
         waveforms = list(self.awb.getfiles())
 
-        for cue_name_entry in self.payload[0]['CueNameTable']:
+        tables = self.payload[0]
+
+        for cue_id, cue_name_entry in enumerate(tables['CueNameTable']):
             cue_name = str(cue_name_entry['CueName'][1]).lower()
             cue_idx = cue_name_entry['CueIndex'][1]
+            # logger.debug(f"CueName[{cue_id}]: CueIndex={cue_idx}, CueName={cue_name}")
             try:
-                waveform_reference_idx = self.get_waveform_for_cue_idx(cue_idx)
+                waveform_id = self.get_waveform_for_cue_idx(cue_idx)
+                if waveform_id is None:
+                    continue
 
-                data = waveforms[waveform_reference_idx]
+                data = waveforms[waveform_id]
                 audio = HCA(data, key=key, subkey=self.awb.subkey).decode()
 
                 if encode:
