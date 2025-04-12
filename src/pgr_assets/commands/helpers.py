@@ -61,7 +61,6 @@ def build_source_set(args: BaseArgs) -> SourceSet:
         version = tuple([int(x) for x in args.version.split('.')])
         args.decrypt_key = determine_decryption_key(version)
         UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
-        patch_unitypy_encryption(version)
 
     source_set = SourceSet()
     source_set.add_primary(primary, args.obb, args.prerelease)
@@ -73,54 +72,9 @@ def build_source_set(args: BaseArgs) -> SourceSet:
         args.decrypt_key = determine_decryption_key(version)
         UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
 
-    patch_unitypy_encryption(version)
-
     source_set.add_patch(patch, args.version)
 
     if args.decrypt_key is None:
         raise RuntimeError("No decryption key was able to be determined. Specify manually!")
 
     return source_set
-
-def patch_unitypy_encryption(version: tuple[int, ...]) -> None:
-    """
-    Newer versions of Unity (2022.3.52f1c1) changes the encryption flag from 0x200 to 0x400,
-    but asset bundles from PGR continue to use the old 0x200 value.
-
-    Hackily assign new value to the enum inside the library.
-
-    I'm sorry this is necessary
-    :return:
-    """
-    from UnityPy.enums.BundleFile import ArchiveFlags
-
-    if version < VERSION_BAD_ENCRYPT or ArchiveFlags.UsesAssetBundleEncryption.value == 0x200:
-        return
-
-    # I must _again_ warn against how horrible this idea is
-    _change_enum_value(ArchiveFlags.UsesAssetBundleEncryption.value, 0x200)
-
-# https://stackoverflow.com/questions/74909582/is-it-possible-to-change-the-attribute-value-in-the-enum
-def _change_enum_value(old: object, new: object) -> None:
-    """
-     Assigns contents of new object to old object.
-     The size of new and old objection should be identical.
-
-     Args:
-         old (Any): Any object
-         new (Any): Any object
-     Raises:
-         ValueError: Size of objects don't match
-     Faults:
-         Segfault: OOB write on destination
-     """
-    from sys import getsizeof
-    from ctypes import c_byte
-
-    src_s, des_s = getsizeof(new), getsizeof(old)
-    if src_s != des_s:
-        raise ValueError("Size of new and old objects don't match")
-    src_arr = (c_byte * src_s).from_address(id(new))
-    des_arr = (c_byte * des_s).from_address(id(old))
-    for index in range(len(des_arr)):
-        des_arr[index] = src_arr[index]

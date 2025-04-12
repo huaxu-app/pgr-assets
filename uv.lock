@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.13"
 
 [[package]]
@@ -204,7 +205,7 @@ wheels = [
 
 [[package]]
 name = "pgr-assets"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "msgpack" },
@@ -222,13 +223,13 @@ dependencies = [
 requires-dist = [
     { name = "msgpack", specifier = ">=1.1.0" },
     { name = "pillow", specifier = ">=11.0.0" },
-    { name = "pycricodecs", git = "https://github.com/BlackNovaTech/PyCriCodecs?rev=main" },
+    { name = "pycricodecs", git = "https://github.com/BlackNovaTech/PyCriCodecs" },
     { name = "pycryptodome", specifier = ">=3.21.0" },
     { name = "python-ffmpeg", specifier = ">=2.0.12" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "typed-argument-parser", specifier = ">=1.10.1" },
-    { name = "unitypy", specifier = ">=1.20.16" },
+    { name = "unitypy", specifier = ">=1.22.2" },
 ]
 
 [[package]]
@@ -261,7 +262,7 @@ wheels = [
 [[package]]
 name = "pycricodecs"
 version = "0.4.11"
-source = { git = "https://github.com/BlackNovaTech/PyCriCodecs?rev=main#01c70f8dad8a0a5a869ffe56d564716f65bbbc51" }
+source = { git = "https://github.com/BlackNovaTech/PyCriCodecs#01c70f8dad8a0a5a869ffe56d564716f65bbbc51" }
 
 [[package]]
 name = "pycryptodome"
@@ -332,9 +333,27 @@ wheels = [
 
 [[package]]
 name = "texture2ddecoder"
-version = "1.0.4"
+version = "1.0.5"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e2/dc/0ea3c5f8555677d69dd7c5aacfa119ff36506f05dc2af385a8556af5539d/texture2ddecoder-1.0.4.tar.gz", hash = "sha256:a4e511f2ea56af1293b3f1d290ca30820b2a6233181929c50d79392b78ec04ea", size = 101207 }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/08/7012aead15dc0e02289615084374f465908568c7b940f0f5ad0eb216b1a4/texture2ddecoder-1.0.5.tar.gz", hash = "sha256:7767e865394ad8e0a0609d275caf3e8c99d03df107dfb961cb90ea21c9295dc2", size = 105164 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/db/d0/ab2e6a4226c1463fef60aad3571dca8b60cee8172f48deaafb2814f80316/texture2ddecoder-1.0.5-cp37-abi3-macosx_10_9_x86_64.whl", hash = "sha256:d037c4071eaeb1b772ccf17dcd1be0ebd1a01a6565f297182346bbafb7acc25e", size = 93163 },
+    { url = "https://files.pythonhosted.org/packages/69/3a/700186efe43b2f01a44ecd9d00365202025c05d11ffa70f9ab46f68f5ff7/texture2ddecoder-1.0.5-cp37-abi3-macosx_11_0_arm64.whl", hash = "sha256:073128f915c5ed54d34230c33709b89a88e11b796e57f9d5c734c640b265551d", size = 87042 },
+    { url = "https://files.pythonhosted.org/packages/12/e8/402c4242b4da2e7c180e42f96ddb79f6f3fbf09d4e68d0d0779bd1c54a35/texture2ddecoder-1.0.5-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:7d21f2866b2bb21f01910b99164bed8a8cc70d2f2be5fd5bf37db1a87a781389", size = 359415 },
+    { url = "https://files.pythonhosted.org/packages/8b/94/36a109d3983f287f7c812c7ce78752b81be32a5c1ef3fd4f3685b9fdee54/texture2ddecoder-1.0.5-cp37-abi3-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:958e82c0fe8f831e317304193d83110566736fa7b03698a97aeb8f6f09828fa1", size = 410332 },
+    { url = "https://files.pythonhosted.org/packages/15/60/6ceb390bab7a04fd44374418c698a17e2ada850c821a350294c3a47ff47f/texture2ddecoder-1.0.5-cp37-abi3-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:185e317b5459f9f4f2429e471f6300a3a8fe11e858048c4105927d342718f946", size = 445208 },
+    { url = "https://files.pythonhosted.org/packages/a0/0d/1f49ad81fd70a68ba84d057002c62495057a08820f658ad4bba9a1cea7e4/texture2ddecoder-1.0.5-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a9dbf2825d74f26d489a4f971e55d57f85397054daef804cfec2e88b5d5247b8", size = 374749 },
+    { url = "https://files.pythonhosted.org/packages/37/01/ef42b019a7d637b1483167508ca27a54d3a3e90746faef9b3c2a652e3504/texture2ddecoder-1.0.5-cp37-abi3-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:e449dc9dc7d59bd5fea302b8b80dcef26a31d53a7ff9e59cd7749b5306138f26", size = 361267 },
+    { url = "https://files.pythonhosted.org/packages/9c/52/458ff691a1217aa7da991cf680357d2a86fe0aac6572cb42acfcc1545aae/texture2ddecoder-1.0.5-cp37-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:7a851cf54e0918d52e63b248129dab8a0bdc98d0237e4da7a85812ce0da101e7", size = 1303707 },
+    { url = "https://files.pythonhosted.org/packages/69/f6/4ba5f070b6ea976135a32f80ed3acc787fc8511af788e58599bfb0b026b8/texture2ddecoder-1.0.5-cp37-abi3-musllinux_1_2_armv7l.whl", hash = "sha256:869c3563bf03eb0af751812d5d42f9b6a33fbd647196e3812060eba89a0b7dcc", size = 1175192 },
+    { url = "https://files.pythonhosted.org/packages/9b/b3/8f5cd6e06eb98b6d29d2268d4d1019a5236c51c77e25622c9a1cd5acd1e3/texture2ddecoder-1.0.5-cp37-abi3-musllinux_1_2_i686.whl", hash = "sha256:3d94ae1a87712908286bc5cc9e6ad173a9357aaf33937507cba2ad4305ed8344", size = 1449421 },
+    { url = "https://files.pythonhosted.org/packages/e9/78/2b5a27e705b93a408fb0a5580ba06728ff35b337871ac42b0a4138c2cd1c/texture2ddecoder-1.0.5-cp37-abi3-musllinux_1_2_ppc64le.whl", hash = "sha256:19f00acb3a25b285c5b3e5a7bc22adb4d90db401c450695e98463585998a5715", size = 1452732 },
+    { url = "https://files.pythonhosted.org/packages/28/c8/b0f9ff91e56cfcbbf3ab6ca4b6d7d86352ec6dac20cfdd1ebc37277a1a37/texture2ddecoder-1.0.5-cp37-abi3-musllinux_1_2_s390x.whl", hash = "sha256:719f0e17b66e3269662ff6bb05167b61df6897ec3555caefc58731d14d0dad39", size = 1590695 },
+    { url = "https://files.pythonhosted.org/packages/9e/2a/3803468e58accc4312f9ab39403de43333c79ea123c03790c7cde1d62591/texture2ddecoder-1.0.5-cp37-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:1fd60db331483094a9c7b84e1188222bb545987a11e3161f217f829e1e9c165f", size = 1363889 },
+    { url = "https://files.pythonhosted.org/packages/5e/5b/1e3202a7b97622924c9304a4cebd65cebebaf5aca1b17c9c9329a797357b/texture2ddecoder-1.0.5-cp37-abi3-win32.whl", hash = "sha256:49fa46e3f10d226a3ead5a11288f781bdd589ff80e649dec8c68cc04b45384e1", size = 52680 },
+    { url = "https://files.pythonhosted.org/packages/54/57/04a442cdb03e94b96e8bcddc237d3ead389d617b2710b6d90423e4349607/texture2ddecoder-1.0.5-cp37-abi3-win_amd64.whl", hash = "sha256:6ee16f7ebb98e227875f3bbd36be3c65b8d84296200b2624e5064f069bb5588f", size = 64636 },
+    { url = "https://files.pythonhosted.org/packages/ae/01/0282ce71a0354449293be479d4561d3c39f1a5628f31aea92d8737fd1911/texture2ddecoder-1.0.5-cp37-abi3-win_arm64.whl", hash = "sha256:500e41c12227d5f0e4065ea7047e69fdcbd773a1602ee64f5d34656330bd7c9e", size = 55686 },
+]
 
 [[package]]
 name = "tqdm"
@@ -386,7 +405,7 @@ wheels = [
 
 [[package]]
 name = "unitypy"
-version = "1.20.16"
+version = "1.22.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "astc-encoder-py" },
@@ -399,17 +418,17 @@ dependencies = [
     { name = "pyfmodex" },
     { name = "texture2ddecoder" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2c/80/78aeef1e418fc7c0b293649d06f032958ce69f38094e36695056ec55461f/unitypy-1.20.16.tar.gz", hash = "sha256:a434ea98f1490e2aa625b0810903d52c0096361012aa45af7d02a7fac99dc0a6", size = 6227666 }
+sdist = { url = "https://files.pythonhosted.org/packages/29/8a/341cc012a617201df7d3ea152b336ff092260bb1ee8a24d70ecb2136dc9f/unitypy-1.22.2.tar.gz", hash = "sha256:01343d0070c5b7ef26d76dec23f9348c8c2963c106bd83c63d93e0e534cf52ea", size = 6235808 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8f/34/a3e953796f311af986bb9e647f6c3dc2face10157b08a766c891ff79ed52/UnityPy-1.20.16-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:c9f7c506da67991814b611c1bbe5f2688544db748f4e53008c72c430ad00e376", size = 1647575 },
-    { url = "https://files.pythonhosted.org/packages/55/6c/8dd8beeb1bf433f114ef04b321edb84c6c417c36514d860d99c006f097f8/UnityPy-1.20.16-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:e07318c0756caa68a931e84a4f2b483dc2eeafffc23d5f381e1e269fec57c871", size = 1645721 },
-    { url = "https://files.pythonhosted.org/packages/1f/aa/10dfbf7805f4ee123fbbeae656ad9d935bc3f6565c327624fd7c7b41321f/UnityPy-1.20.16-cp313-cp313-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:c5226d4a3f73429fe4624f6e82f52685c6d2737adf3b969d6875075c73c470db", size = 2040108 },
-    { url = "https://files.pythonhosted.org/packages/81/50/390aba27afeb69f1b7442809049bd6cc27e07e308db839f874b98143cb22/UnityPy-1.20.16-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:30b18976305f1e365a05a93f64591c4875cb08d26cd72e6c5081658e7ebfdec4", size = 2051297 },
-    { url = "https://files.pythonhosted.org/packages/48/ff/428296a0a1a89996e5a7a2e4be63537a0a59b728d8d622ef5307b0289374/UnityPy-1.20.16-cp313-cp313-musllinux_1_2_i686.whl", hash = "sha256:83c921d2bdb804ec38daee177e330354dcb4f2f86b39f8b97d660967fcf65297", size = 3050382 },
-    { url = "https://files.pythonhosted.org/packages/51/a1/5f18eefee17203ebed87f78048ae8f7b10d6f113a28928e3a60c48bffeff/UnityPy-1.20.16-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:e120051773088289fb91d932515f168747da36bd34c7fbb4111f4ec9169cbb80", size = 2965883 },
-    { url = "https://files.pythonhosted.org/packages/52/ab/daaeb3cb1417f8628e2fdb48778afdc11491bd3ade78d13bef2b4562cd75/UnityPy-1.20.16-cp313-cp313-win32.whl", hash = "sha256:5e8286ac87dbb7ca19e2771358cc2b5fb9120b704ccf18f8f06bb93415b32d48", size = 1972263 },
-    { url = "https://files.pythonhosted.org/packages/c2/7f/f7f2f717f7e999df57c4b2a86035eb3489c3c9c99c190876bc56ca182e1f/UnityPy-1.20.16-cp313-cp313-win_amd64.whl", hash = "sha256:90f88db9e1d1dd7058da2de22b010ab73d5f0568524aef6d02e984d2608a659e", size = 1977842 },
-    { url = "https://files.pythonhosted.org/packages/e8/00/43b7e92d363320f587622e2108a8592e047cd693c084e92b4a0f351e3d6f/UnityPy-1.20.16-cp313-cp313-win_arm64.whl", hash = "sha256:076a7e025d75c879ef63c56d525de4526cf19857c6bc960266d2401ef705e117", size = 2537086 },
+    { url = "https://files.pythonhosted.org/packages/dc/40/e6ea1a5ad26689137c5bfd4f8a5a2cd9e3e55bf5df5d124cf6ffa1901b56/unitypy-1.22.2-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:f3abaf183302efd262ae06927257e9592fea661ab8b60154b49ca4ef5ef84898", size = 1657784 },
+    { url = "https://files.pythonhosted.org/packages/96/a6/bb625e9723ebeaff03319201c2aa08537e4501f91920b65c4b6ff95f0cac/unitypy-1.22.2-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:8cd9bfe7c295d114e8b87adbda0466d29a2b8fe26e7e50c3b31cd5278b054bf1", size = 1655898 },
+    { url = "https://files.pythonhosted.org/packages/3e/47/1441cfdbd24f69269519f6746e0566d17e232177e331cf5400c6dbfa44b8/unitypy-1.22.2-cp313-cp313-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:c2d431997e19522dc960b1cc0e0625e61ff22aacb0135164435f926d119fa58d", size = 2052137 },
+    { url = "https://files.pythonhosted.org/packages/ec/7d/5fd600b20f92b147bad4f0f682de4266eece1db02cc7ef5865362bbe9bc5/unitypy-1.22.2-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c4651e9f2233cf0466d40d9939f2a222c65bae849bcf4aa10566d623b67c396f", size = 2063342 },
+    { url = "https://files.pythonhosted.org/packages/d2/6c/10b949dd2f8e97d51d6f6491ca8a5206a04ee0303703ffdb55bb92c4cb43/unitypy-1.22.2-cp313-cp313-musllinux_1_2_i686.whl", hash = "sha256:b40a4f466452ba2215adfdc7f99239ecff8e3e442e83cbaae32b7332ff1d4a09", size = 3059364 },
+    { url = "https://files.pythonhosted.org/packages/21/a3/e14306760bb36a2a29031ecddac141a1573e977a8cdcbbf49d7ccc6fe597/unitypy-1.22.2-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:c2bd18ba5f0a3214b51012905821697d84c851e7cb686084d60c33a95fca8504", size = 2977297 },
+    { url = "https://files.pythonhosted.org/packages/61/1f/3d50fce3261b830e1fec553c4b3ae875e0b914b42f340051d5fd2e9e32b4/unitypy-1.22.2-cp313-cp313-win32.whl", hash = "sha256:839609e3b2e7c43cfe9f6e072da5031963c49751d91f1166de7de32917424983", size = 1983624 },
+    { url = "https://files.pythonhosted.org/packages/ca/7a/a5896d9b0cdd6d1b420d2c8e602b5dee90e40ce7805f28849e3f892ee2a8/unitypy-1.22.2-cp313-cp313-win_amd64.whl", hash = "sha256:dac5bedcc015ef9f316e512f9cb4454a78e38e92c676c1ed060aafa5b1f2f504", size = 1989700 },
+    { url = "https://files.pythonhosted.org/packages/4b/37/74a1478540250d1fbfb493eddfbfc32a1d30f12e5e5121e8de03a655abac/unitypy-1.22.2-cp313-cp313-win_arm64.whl", hash = "sha256:c5ae1c6da5f811ecafecfa1de45c90307d275af90dcd0f9546c9006883b45358", size = 2546777 },
 ]
 
 [[package]]
