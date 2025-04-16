@@ -26,10 +26,11 @@ class State:
     nvenc: bool
     decrypt_key: str
     convert_binary_tables: bool
+    encode_mp3: bool
     new_fixnum: bool
 
     def __init__(self, sources: SourceSet, output_dir: str, decrypt_key: str, recode_video: bool = False,
-                 nvenc: bool = False, convert_binary_tables: bool = False):
+                 nvenc: bool = False, convert_binary_tables: bool = False, encode_mp3: bool = True):
         self.sources = sources
         self.cues = CueRegistry()
         self.output_dir = output_dir
@@ -37,6 +38,7 @@ class State:
         self.nvenc = nvenc
         self.decrypt_key = decrypt_key
         self.convert_binary_tables = convert_binary_tables
+        self.encode_mp3 = encode_mp3
 
         self.new_fixnum = sources.version()[:2] >= (3, 3)
         if self.new_fixnum:
@@ -77,7 +79,7 @@ def process_audio(bundle: str, state: State):
 
     acb = ACB(acb_data, awb_data)
     logger.debug(f"Extracting {acb_file}")
-    acb.extract(key=AUDIO_KEY, dirname=os.path.join(state.output_dir, 'audio', base_name), encode=True)
+    acb.extract(key=AUDIO_KEY, dirname=os.path.join(state.output_dir, 'audio', base_name), encode=state.encode_mp3)
 
 
 def process_usm(bundle: str, state: State):
@@ -171,8 +173,9 @@ class ExtractCommand(BaseArgs):
     recode_video: bool = False  # Recode h264 in videos
     convert_binary_tables: bool = False  # Allows converting binary tables into CSV files (WARNING: not everything is supported)
     nvenc: bool = False  # Use NVenc to recode
+    raw_audio: bool = False  # Store extracted audio from ACB/AWB as WAV files instead of converting them to MP3
 
-    all: bool = False  # Extract all i can find
+    all: bool = False  # Extract all I can find
     cache: str = ''  # Path to sha1 cache file
     write_settings: bool = False  # Write a small settings file to the output directory containing preset and version
 
@@ -187,7 +190,7 @@ def extract_cmd(args: ExtractCommand):
     args.process_args()
     ss = build_source_set(args)
 
-    state = State(ss, args.output, args.decrypt_key, args.recode_video, args.nvenc, args.convert_binary_tables)
+    state = State(ss, args.output, args.decrypt_key, args.recode_video, args.nvenc, args.convert_binary_tables, not args.raw_audio)
 
     if any(bundle.endswith('.acb') for bundle in args.bundles) or args.all_audio or args.all:
         state.load_cues()
