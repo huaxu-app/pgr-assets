@@ -1,7 +1,7 @@
 import os
 import struct
 from decimal import Decimal
-from typing import BinaryIO
+from typing import BinaryIO, Callable, Optional
 
 MAX_I32 = 2_147_483_647
 FLOAT_TO_INT = 10_000
@@ -10,11 +10,21 @@ FLOAT_TO_INT = 10_000
 class Reader:
     file: BinaryIO
     new_fixnum: bool
+    use_string_pool: bool
+    string_pool_callback: Optional[Callable[[int], str]]
 
     # New style fixnum is from 3.3.0 (Jetavie) onwards
     def __init__(self, file: BinaryIO, new_fixnum=False):
         self.file = file
         self.new_fixnum = new_fixnum
+        self.use_string_pool = False
+        self.string_pool_callback = None
+
+    def set_use_string_pool(self, use_pool: bool):
+        self.use_string_pool = use_pool
+
+    def set_string_pool_callback(self, callback: Callable[[int], str]):
+        self.string_pool_callback = callback
 
     def read_bytes(self, size):
         return self.file.read(size)
@@ -60,6 +70,12 @@ class Reader:
         return self.read_u8() == 1
 
     def read_string(self):
+        # If using string pool, get string from the pool
+        if self.use_string_pool:
+            index = self.read_int() or 0
+            if self.string_pool_callback:
+                return self.string_pool_callback(index)
+            return ""
         chars = bytearray([])
         while True:
             byte = self.read_u8()
@@ -160,6 +176,9 @@ class Reader:
 
     def move(self, offset):
         self.seek(offset, from_where=os.SEEK_CUR)
+
+    def get_position(self):
+        return self.file.tell()
 
 
 
