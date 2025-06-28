@@ -10,7 +10,7 @@ from .helpers import rewrite_text_asset
 logger = logging.getLogger('pgr-assets.extractors.bundle')
 
 
-def extract_bundle(env: UnityPy.Environment, output_dir: str, allow_binary_table_convert = False, new_fixnum = False):
+def extract_bundle(env: UnityPy.Environment, output_dir: str, game_version: tuple[int, int], allow_binary_table_convert=False):
     for path, obj in env.container.items():
         dest = os.path.join(output_dir, *path.split("/"))
         # create dest based on original path
@@ -29,7 +29,7 @@ def extract_bundle(env: UnityPy.Environment, output_dir: str, allow_binary_table
                 logger.debug(f"Extracted {path}")
             elif obj.type.name == "TextAsset":
                 data = obj.read()
-                dest, data = rewrite_text_asset(dest, data.m_Script.encode('utf-8', 'surrogateescape'), allow_binary_table_convert=allow_binary_table_convert, new_fixnum=new_fixnum)
+                dest, data = rewrite_text_asset(dest, data.m_Script.encode('utf-8', 'surrogateescape'), game_version, allow_binary_table_convert=allow_binary_table_convert)
                 # path can change a bit
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 with open(dest, "wb") as f:
@@ -41,10 +41,10 @@ def extract_bundle(env: UnityPy.Environment, output_dir: str, allow_binary_table
             logger.error(f"Failed to extract {path}: {e}")
 
 
-def get_text_asset(env: UnityPy.Environment, path: str, allow_binary_table_convert = False) -> str:
+def get_text_asset(env: UnityPy.Environment, path: str, game_version: tuple[int, int], allow_binary_table_convert = False) -> str:
     obj = env.container[path]
     data = obj.read()
-    _, data = rewrite_text_asset(path, data.m_Script.encode('utf-8', 'surrogateescape'), allow_binary_table_convert=allow_binary_table_convert)
+    _, data = rewrite_text_asset(path, data.m_Script.encode('utf-8', 'surrogateescape'), game_version, allow_binary_table_convert=allow_binary_table_convert)
     return data.decode("utf-8")
 
 

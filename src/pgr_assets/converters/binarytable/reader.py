@@ -20,9 +20,6 @@ class Reader:
         self.use_string_pool = False
         self.string_pool_callback = None
 
-    def set_use_string_pool(self, use_pool: bool):
-        self.use_string_pool = use_pool
-
     def set_string_pool_callback(self, callback: Callable[[int], str]):
         self.string_pool_callback = callback
 
@@ -69,13 +66,14 @@ class Reader:
     def read_bool(self):
         return self.read_u8() == 1
 
-    def read_string(self):
+    def read_string(self, force_use_pool=None):
         # If using string pool, get string from the pool
-        if self.use_string_pool:
+        if force_use_pool is True or (force_use_pool is None and self.use_string_pool):
             index = self.read_int() or 0
             if self.string_pool_callback:
                 return self.string_pool_callback(index)
             return ""
+
         chars = bytearray([])
         while True:
             byte = self.read_u8()

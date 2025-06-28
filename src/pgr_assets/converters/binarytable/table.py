@@ -41,6 +41,7 @@ class BinaryTable:
     row_count: int
     content_trunk_length: int
 
+    enable_string_pool: bool = False
     pool_column_size: int
     column_map: Dict[int, bool]
     pool_offset_info_array: List[int]
@@ -48,16 +49,20 @@ class BinaryTable:
 
     rows: List
 
-    def __init__(self, data: BinaryIO, new_fixnum = False):
-        self.reader = Reader(data, new_fixnum=new_fixnum)
-        self.pool_column_size = -1
-        self.column_map = {}
-        self.pool_offset_info_array = []
-        self.pool_content_start_pos = 0
-        self.reader.set_string_pool_callback(self.read_pool_string_by_index)
+    def __init__(self, data: BinaryIO, game_version: tuple[int, int]):
+        self.reader = Reader(data, new_fixnum=game_version >= (3, 3))
+
+        if game_version >= (3, 6):
+            self.enable_string_pool = True
+            self.pool_column_size = -1
+            self.column_map = {}
+            self.pool_offset_info_array = []
+            self.pool_content_start_pos = 0
+            self.reader.set_string_pool_callback(self.read_pool_string_by_index)
 
         self._read_header()
-        self._read_string_pool_info()
+        if self.enable_string_pool:
+            self._read_string_pool_info()
         self._read_content()
 
     def _read_header(self):
@@ -73,8 +78,11 @@ class BinaryTable:
         self.primary_key = ''
         self.primary_key_length = 0
         if self.has_primary_key:
-            primary_key_index = self.reader.read_int() or 0
-            self.primary_key = self.columns[primary_key_index].name
+            if self.enable_string_pool:
+                primary_key_index = self.reader.read_int() or 0
+                self.primary_key = self.columns[primary_key_index].name
+            else:
+                self.primary_key = self.reader.read_string()
             self.primary_key_length = self.reader.read_int()
 
         self.row_trunk_length = self.reader.read_int()
@@ -138,6 +146,9 @@ class BinaryTable:
             self.pool_offset_info_array.append(self.reader.read_int() or 0)
 
     def _is_string_pool_column(self, column_index):
+        if not self.enable_string_pool:
+            return False
+
         if column_index < 0:
             return False
         if self.pool_column_size == -1:
@@ -155,14 +166,10 @@ class BinaryTable:
 
         pool_content_start_pos = self._get_pool_content_trunk_start_position()
         start_pos = 0 if index <= 0 else self.pool_offset_info_array[index - 1]
-        end_pos = self.pool_offset_info_array[index]
         current_pos = self.reader.get_position()
         self.reader.seek(pool_content_start_pos + start_pos)
-        old_use_pool = self.reader.use_string_pool
-        # disable usage of the pool to read the string, then set it to its old value
-        self.reader.set_use_string_pool(False)
-        string_value = self.reader.read_string()
-        self.reader.set_use_string_pool(old_use_pool)
+        # disable usage of the pool to read the string
+        string_value = self.reader.read_string(force_use_pool=False)
         self.reader.seek(current_pos)
         return string_value
 
@@ -177,7 +184,7 @@ class BinaryTable:
     def _row(self, row_index: int):
         row = []
         for j, column in enumerate(self.columns):
-            self.reader.set_use_string_pool(self._is_string_pool_column(j + 1))
+            self.reader.use_string_pool = self._is_string_pool_column(j + 1)
             try:
                 value = self.reader.read_by_column_type(column.type)
             except Exception as e:
