@@ -2,6 +2,7 @@ import logging
 
 from tap import Tap
 
+from .bundles import BundlesCommand
 from .extract import ExtractCommand
 from .list import ListCommand
 from .spines import SpinesCommand
@@ -14,6 +15,7 @@ class Args(Tap):
         self.add_subparser('list', ListCommand, help='List all available bundles')
         self.add_subparser('extract', ExtractCommand, help='Extracts all regular asset bundles')
         self.add_subparser('spines', SpinesCommand, help='Extracts all spine assets')
+        self.add_subparser('bundles', BundlesCommand, help='Download bundles')
 
     def process_args(self):
         if self.log_level:
