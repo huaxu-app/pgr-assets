@@ -30,7 +30,11 @@ class SourceSet:
             raise Exception(f"Unknown patch type {patch_type}")
 
         if version is None:
-            version = '%d.%d.%d' % self.version()[:3]
+            version_nibbles = self.version()[:3]
+            # Patch never has .patch versions even if pc has them
+            if len(version_nibbles) == 3 and version_nibbles[-1] != 0:
+                version_nibbles = (version_nibbles[0], version_nibbles[1], 0)
+            version = '%d.%d.%d' % version_nibbles
         if version is None:
             raise Exception("Patch version required, and could not be inferred from earlier sources")
 

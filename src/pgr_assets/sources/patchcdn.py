@@ -112,9 +112,9 @@ class PatchCdnSource(Source):
         env = UnityPy.load(bundle.content)
 
         if 'assets/temp/index.bytes' in env.container:
-            self._index = msgpack.loads(env.container['assets/temp/index.bytes'].read().m_Script.encode('utf-8', 'surrogateescape'), strict_map_key=False)[0]
+            self._index = msgpack.loads(env.container['assets/temp/index.bytes'].read().script, strict_map_key=False)[0]
         elif 'assets/buildtemp/index.bytes' in env.container:
-            partial_indices = msgpack.loads(env.container['assets/buildtemp/index.bytes'].read().m_Script.encode('utf-8', 'surrogateescape'), strict_map_key=False)
+            partial_indices = msgpack.loads(env.container['assets/buildtemp/index.bytes'].read().script, strict_map_key=False)
             self._index = partial_indices[0]
             for v in partial_indices[1].values():
                 self._index.update(v)

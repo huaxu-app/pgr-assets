@@ -16,17 +16,18 @@ class PcStarterData:
     predownload: bool
 
     def index_url(self):
-        return f'{self.cdn}pcstarter/prod/game/G{self.game_id}/{self.iteration}/index.json'
+        return f'{self.cdn}game/G{self.game_id}/{self.iteration}/index.json'
 
 
 class PcStarterCdn(Enum):
-    EN_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 143, 4, False)
-    EN_PC_PRE = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 143, 4, True)
-    KR_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 286, '50011_XefwDdpgPxxLABoTOD0yuqTFBC3koJZ0', False)
-    JP_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 282, '50007_NxWGZ0d254oWqZKuuL6szOK7WRLPt668', False)
-    TW_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 279, '50006', False)
-    CN_PC = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/', 148, 10001, False)
-    CN_PC_BETA = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/', 148, 7, False)
+    #EN_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 143, 4, False)
+    EN_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/launcher/', 143, '50015_LWdk9D2Ep9mpJmqBZZkcPBU2YNraEWBQ', False)
+    EN_PC_PRE = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/pcstarter/prod/', 143, 4, True)
+    KR_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/pcstarter/prod/', 286, '50011_XefwDdpgPxxLABoTOD0yuqTFBC3koJZ0', False)
+    JP_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/pcstarter/prod/', 282, '50007_NxWGZ0d254oWqZKuuL6szOK7WRLPt668', False)
+    TW_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/pcstarter/prod/', 279, '50006', False)
+    CN_PC = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/pcstarter/prod/', 148, 10001, False)
+    CN_PC_BETA = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/pcstarter/prod/', 148, 7, False)
 
 
 class PcStarterSource(Source):
@@ -63,10 +64,16 @@ class PcStarterSource(Source):
         return tuple(int(s) for s in self.index()[self._section]['version'].split('.'))
 
     def base_path(self):
-        return self.index()[self._section]['resourcesBasePath']
+        url = self.index()[self._section]['resourcesBasePath']
+        if url[-1] != '/':
+            url += '/'
+        return url
 
     def blob_cdn_url(self):
-        return self.index()['default']['cdnList'][0]['url']
+        url = self.index()['default']['cdnList'][0]['url']
+        if url[-1] != '/':
+            url += '/'
+        return url
 
     def bundle_to_blob(self, bundle: str) -> Union[str, None]:
         return None
@@ -83,8 +90,12 @@ class PcStarterSource(Source):
         resource_index = self._get_json(blob_base + self.index()[self._section]['resources'])
         resources = {}
         for resource in resource_index['resource']:
-            blob = resource['dest'].split('/')[-1]
-            resources[blob] = blob_base + self.base_path() + resource['dest']
+            dest = resource['dest']
+            # remove prefix slash if set
+            if dest[0] == '/':
+                dest = dest[1:]
+            blob = dest.split('/')[-1]
+            resources[blob] = blob_base + self.base_path() + dest
         self._resources = resources
         return resources
 

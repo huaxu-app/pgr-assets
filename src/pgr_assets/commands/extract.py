@@ -31,16 +31,16 @@ class State:
 
     def __init__(self, sources: SourceSet, output_dir: str, decrypt_key: str, recode_video: bool = False,
                  nvenc: bool = False, convert_binary_tables: bool = False, encode_mp3: bool = True):
+        self.game_version = sources.version()[:2]
+
         self.sources = sources
-        self.cues = CueRegistry()
+        self.cues = CueRegistry(self.game_version)
         self.output_dir = output_dir
         self.recode_video = recode_video
         self.nvenc = nvenc
         self.decrypt_key = decrypt_key
         self.convert_binary_tables = convert_binary_tables
         self.encode_mp3 = encode_mp3
-
-        self.game_version = sources.version()[:2]
 
     def load_cues(self):
         self.cues.init(self.sources)
