@@ -25,8 +25,8 @@ class PcStarterCdn(Enum):
     KR_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/launcher/', 286, '50011_XefwDdpgPxxLABoTOD0yuqTFBC3koJZ0', False)
     JP_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/launcher/', 282, '50007_NxWGZ0d254oWqZKuuL6szOK7WRLPt668', False)
     TW_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/launcher/', 279, '50016_i2n5NLmdCAmOGP3J1tJOlWKNSMQuyWL7', False)
-    CN_PC = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/pcstarter/prod/', 148, 10001, False)
-    CN_PC_BETA = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/pcstarter/prod/', 148, 7, False)
+    CN_PC = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/', 148, '10011_qYQv6TyyyhCKD3ox3gssyolNPwMoCPZt', False)
+    CN_PC_BETA = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/', 148, '10013_Gp9Gz1u9I5eyllXu64TfWhaPBQFXB449', False)
 
 
 class PcStarterSource(Source):
