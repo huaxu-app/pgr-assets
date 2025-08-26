@@ -192,8 +192,10 @@ class BinaryTable:
 
             row.append(value)
 
-            if (type(value) is list or column.is_int_keyed_dict()) and len(value) > column.list_length:
+            if type(value) is list and len(value) > column.list_length:
                 column.list_length = len(value)
+            elif column.is_int_keyed_dict() and len(value) > 0:
+                column.list_length = max(column.list_length, *value.keys())
             elif column.is_dict_type():
                 for key in value.keys():
                     column.add_dict_key(key)
