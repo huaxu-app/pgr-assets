@@ -11,7 +11,7 @@ from tqdm import tqdm
 from pgr_assets import extractors
 from pgr_assets.audio import CueRegistry, ACB
 from pgr_assets.sources import SourceSet
-from .helpers import build_source_set, BaseArgs
+from .helpers import build_source_set, BaseArgs, patch_unitypy_encryption
 
 logger = logging.getLogger('pgr-assets')
 
@@ -143,7 +143,7 @@ def write_sha1_cache(file: str, bundles: List[str], state: State):
 def execute_in_pool(bundles: List[str], state: State, cache: str, max_workers: int = None, checkpoint_step: int = 100):
     finished_bundles = list()
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers, initializer=patch_unitypy_encryption, initargs=[state.game_version]) as executor:
         futures = [executor.submit(process, bundle, state) for bundle in bundles]
         for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
             try:
