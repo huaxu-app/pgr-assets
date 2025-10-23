@@ -1,8 +1,6 @@
-import logging
 from typing import Optional, Literal
 
 import UnityPy
-from UnityPy.enums import ArchiveFlags
 from tap import Tap
 
 from pgr_assets.sources import SourceSet

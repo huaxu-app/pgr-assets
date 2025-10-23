@@ -51,7 +51,7 @@ class ObbSource(Source):
         if 'assets/buildtemp/index.bytes' not in env.container:
             raise Exception("Invalid OBB index bundle")
 
-        self._index = msgpack.loads(env.container['assets/buildtemp/index.bytes'].read().script)[0]
+        self._index = msgpack.loads(env.container['assets/buildtemp/index.bytes'].read().m_Script.encode("utf-8", "surrogateescape"))[0]
 
     def resources(self) -> Dict[str, str]:
         return self._resources

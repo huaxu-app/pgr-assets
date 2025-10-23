@@ -19,7 +19,7 @@ def extract_bundle(env: UnityPy.Environment, output_dir: str, game_version: tupl
 
         try:
             if path.endswith('.ttf'):
-                font = next(o for o in obj.assetsfile.objects.values() if o.type == ClassIDType.Font)
+                font = next(o for o in obj.assets_file.objects.values() if o.type == ClassIDType.Font)
                 with open(dest, "wb") as f:
                     f.write(bytes(font.read().m_FontData))
                 logger.debug(f"Extracted font {path}")
@@ -29,7 +29,7 @@ def extract_bundle(env: UnityPy.Environment, output_dir: str, game_version: tupl
                 logger.debug(f"Extracted {path}")
             elif obj.type.name == "TextAsset":
                 data = obj.read()
-                dest, data = rewrite_text_asset(dest, data.script, game_version, allow_binary_table_convert=allow_binary_table_convert)
+                dest, data = rewrite_text_asset(dest, data.m_Script.encode("utf-8", "surrogateescape"), game_version, allow_binary_table_convert=allow_binary_table_convert)
                 # path can change a bit
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 with open(dest, "wb") as f:
@@ -44,7 +44,7 @@ def extract_bundle(env: UnityPy.Environment, output_dir: str, game_version: tupl
 def get_text_asset(env: UnityPy.Environment, path: str, game_version: tuple[int, int], allow_binary_table_convert = False) -> str:
     obj = env.container[path]
     data = obj.read()
-    _, data = rewrite_text_asset(path, data.script, game_version, allow_binary_table_convert=allow_binary_table_convert)
+    _, data = rewrite_text_asset(path, data.m_Script.encode("utf-8", "surrogateescape"), game_version, allow_binary_table_convert=allow_binary_table_convert)
     return data.decode("utf-8")
 
 
