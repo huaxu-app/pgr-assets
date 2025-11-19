@@ -68,7 +68,8 @@ class PGRUSM(PyCriCodecs.USM):
 
                 if '@SFA' in k:
                     mapping.append(f"{i}:a")
-                    metadata[f'metadata:s:a:{audio_track_number}'] = 'language=' + self.audio_language[k]
+                    if k in self.audio_language:
+                        metadata[f'metadata:s:a:{audio_track_number}'] = 'language=' + self.audio_language[k]
                     audio_track_number += 1
                 elif '@SFV' in k:
                     mapping.append(f"{i}:v")
