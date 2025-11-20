@@ -1,8 +1,11 @@
 import dataclasses
-import os
-import tempfile
+import logging
 import typing
+from functools import lru_cache
+
 from ffmpeg import FFmpeg, FFmpegError
+
+logger = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class Track:
@@ -29,6 +32,30 @@ class BaseVideoEncoder(typing.Protocol):
         """
         ...
 
+    @staticmethod
+    def _execute(ffmpeg: FFmpeg):
+        err = []
+
+        @ffmpeg.on("stderr")
+        def stderr(line):
+            err.append(line)
+
+        try:
+            ffmpeg.execute()
+        except FFmpegError as e:
+            logger.exception(
+                (
+                        f"Error encoding video: {e}\n"
+                        + "arguments: "
+                        + " ".join(ffmpeg.arguments)
+                        + "\n"
+                        + "\n".join(err)
+                ),
+                exc_info=True,
+            )
+            raise
+
+@lru_cache(maxsize=None)
 def check_encoder_available(encoder: str):
     try:
         ffmpeg = FFmpeg().input("color=c=black:s=320x240:d=0.1", f="lavfi").output('-', f="null", vcodec=encoder)

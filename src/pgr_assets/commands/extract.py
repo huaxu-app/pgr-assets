@@ -12,11 +12,32 @@ from pgr_assets import extractors
 from pgr_assets.audio import CueRegistry, ACB
 from pgr_assets.sources import SourceSet
 from .helpers import build_source_set, BaseArgs
-from ..extractors.video_encoders import BaseVideoEncoder, WebMp4Encoder
+from ..extractors.video_encoders import BaseVideoEncoder, WebMp4Encoder, HlsEncoder
 
 logger = logging.getLogger('pgr-assets')
 
 AUDIO_KEY = 62855594017927612
+
+class ExtractCommand(BaseArgs):
+    output: str  # Output directory to use.
+    all_temp: bool = False  # Extract all temp (text) bundles
+    all_audio: bool = False  # Extract all audio bundles
+    all_video: bool = False  # Extract all video bundles
+    all_images: bool = False  # Extract all image bundles
+
+    convert_binary_tables: bool = False  # Allows converting binary tables into CSV files (WARNING: not everything is supported)
+    raw_audio: bool = False  # Store extracted audio from ACB/AWB as WAV files instead of converting them to MP3
+    hls: bool = False  # Generate HTTP Live Streaming variants for videos on top of mp4's
+
+    all: bool = False  # Extract all I can find
+    cache: str = ''  # Path to sha1 cache file
+    write_settings: bool = False  # Write a small settings file to the output directory containing preset and version
+
+    bundles: List[str]  # Bundles to extract
+
+    def configure(self) -> None:
+        self.add_argument('bundles', nargs='*', help='Bundles to extract')
+        self.set_defaults(func=extract_cmd)
 
 
 class State:
@@ -30,15 +51,19 @@ class State:
 
     video_encoders: list[BaseVideoEncoder] = [WebMp4Encoder()]
 
-    def __init__(self, sources: SourceSet, output_dir: str, decrypt_key: str, convert_binary_tables: bool = False, encode_mp3: bool = True):
+    def __init__(self, sources: SourceSet, args: ExtractCommand):
         self.game_version = sources.version()[:2]
 
         self.sources = sources
         self.cues = CueRegistry(self.game_version)
-        self.output_dir = output_dir
-        self.decrypt_key = decrypt_key
-        self.convert_binary_tables = convert_binary_tables
-        self.encode_mp3 = encode_mp3
+        self.output_dir = args.output
+        self.decrypt_key = args.decrypt_key
+        self.convert_binary_tables = args.convert_binary_tables
+        self.encode_mp3 = not args.raw_audio
+
+        if args.hls:
+            self.video_encoders.append(HlsEncoder())
+
 
     def load_cues(self):
         self.cues.init(self.sources)
@@ -162,32 +187,11 @@ def execute_in_pool(bundles: List[str], state: State, cache: str, max_workers: i
         write_sha1_cache(cache, finished_bundles, state)
 
 
-class ExtractCommand(BaseArgs):
-    output: str  # Output directory to use.
-    all_temp: bool = False  # Extract all temp (text) bundles
-    all_audio: bool = False  # Extract all audio bundles
-    all_video: bool = False  # Extract all video bundles
-    all_images: bool = False  # Extract all image bundles
-
-    convert_binary_tables: bool = False  # Allows converting binary tables into CSV files (WARNING: not everything is supported)
-    raw_audio: bool = False  # Store extracted audio from ACB/AWB as WAV files instead of converting them to MP3
-
-    all: bool = False  # Extract all I can find
-    cache: str = ''  # Path to sha1 cache file
-    write_settings: bool = False  # Write a small settings file to the output directory containing preset and version
-
-    bundles: List[str]  # Bundles to extract
-
-    def configure(self) -> None:
-        self.add_argument('bundles', nargs='*', help='Bundles to extract')
-        self.set_defaults(func=extract_cmd)
-
-
 def extract_cmd(args: ExtractCommand):
     args.process_args()
     ss = build_source_set(args)
 
-    state = State(ss, args.output, args.decrypt_key, args.convert_binary_tables, not args.raw_audio)
+    state = State(ss, args)
 
     if any(bundle.endswith('.acb') for bundle in args.bundles) or args.all_audio or args.all:
         state.load_cues()

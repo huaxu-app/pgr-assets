@@ -1,21 +1,21 @@
 import logging
 import os
 
-from ffmpeg import FFmpeg, FFmpegError
+from ffmpeg import FFmpeg
 
 from . import BaseVideoEncoder, Track, check_encoder_available
 
-logger = logging.getLogger('pgr-assets.extractors.video_encoders.mp4')
+logger = logging.getLogger(__name__)
 
 
 class WebMp4Encoder(BaseVideoEncoder):
-    encoder: str = 'h264'
+    encoder: str = "h264"
 
     def setup(self):
         logger.debug("Checking for NVENC support")
-        if check_encoder_available('h264_nvenc'):
-            logger.warning("Found NVENC support")
-            self.encoder = 'h264_nvenc'
+        if check_encoder_available("h264_nvenc"):
+            logger.debug("Found NVENC support")
+            self.encoder = "h264_nvenc"
 
     def encode(self, base_output_path: str, video: list[Track], audio: list[Track]):
         output_file = base_output_path + ".mp4"
@@ -44,23 +44,4 @@ class WebMp4Encoder(BaseVideoEncoder):
             map=[str(i) for i in range(len(audio) + len(video))],
         )
 
-        err = []
-
-        @ffmpeg.on("stderr")
-        def stderr(line):
-            err.append(line)
-
-        try:
-            ffmpeg.execute()
-        except FFmpegError as e:
-            logger.exception(
-                (
-                    f"Error encoding video: {e}\n"
-                    + "arguments: "
-                    + " ".join(ffmpeg.arguments)
-                    + "\n"
-                    + "\n".join(err)
-                ),
-                exc_info=True,
-            )
-            raise
+        self._execute(ffmpeg)

@@ -80,16 +80,16 @@ class PGRUSM(PyCriCodecs.USM):
 def ffmpeg_language_code(text: str) -> str | None:
     """
     Detect language tag inside a string and return the
-    correct FFmpeg ISO-639-2 language code.
+    correct RFC 5646 language code.
     """
 
     text_lower = text.lower()
 
     mapping = {
-        "jp": "jpn",     # Japanese
-        "en": "eng",     # English
-        "cn": "zho",     # Chinese (Simplified/Mandarin)
-        "ct": "yue",     # Cantonese (Traditional Chinese audio)
+        "jp": "ja",  # Japanese
+        "en": "en",  # English
+        "cn": "zh",  # Chinese (Simplified/Mandarin)
+        "ct": "yue", # Cantonese (Traditional Chinese audio)
     }
 
     for key, code in mapping.items():
