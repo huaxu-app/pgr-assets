@@ -12,6 +12,7 @@ from pgr_assets import extractors
 from pgr_assets.audio import CueRegistry, ACB
 from pgr_assets.sources import SourceSet
 from .helpers import build_source_set, BaseArgs
+from ..extractors.video_encoders import BaseVideoEncoder, WebMp4Encoder
 
 logger = logging.getLogger('pgr-assets')
 
@@ -22,22 +23,19 @@ class State:
     output_dir: str
     sources: SourceSet
     cues: CueRegistry
-    recode_video: bool
-    nvenc: bool
     decrypt_key: str
     convert_binary_tables: bool
     encode_mp3: bool
     game_version: tuple[int, int]
 
-    def __init__(self, sources: SourceSet, output_dir: str, decrypt_key: str, recode_video: bool = False,
-                 nvenc: bool = False, convert_binary_tables: bool = False, encode_mp3: bool = True):
+    video_encoders: list[BaseVideoEncoder] = [WebMp4Encoder()]
+
+    def __init__(self, sources: SourceSet, output_dir: str, decrypt_key: str, convert_binary_tables: bool = False, encode_mp3: bool = True):
         self.game_version = sources.version()[:2]
 
         self.sources = sources
         self.cues = CueRegistry(self.game_version)
         self.output_dir = output_dir
-        self.recode_video = recode_video
-        self.nvenc = nvenc
         self.decrypt_key = decrypt_key
         self.convert_binary_tables = convert_binary_tables
         self.encode_mp3 = encode_mp3
@@ -81,11 +79,14 @@ def process_audio(bundle: str, state: State):
 
 
 def process_usm(bundle: str, state: State):
-    filename = bundle.split('/', 2)[2].split('.')[0].lower() + '.mp4'
+    if len(state.video_encoders) == 0:
+        raise RuntimeError("No video encoders specified, cannot encode videos")
+
+    filename = bundle.split('/', 2)[2].split('.')[0].lower()
     data = state.sources.find_bundle(bundle)
     usm = extractors.PGRUSM(data, key=AUDIO_KEY)
     logger.debug(f"Extracting {filename}")
-    usm.extract_video(os.path.join(state.output_dir, 'video', filename), recode=state.recode_video, nvenc=state.nvenc)
+    usm.extract_video(os.path.join(state.output_dir, 'video', filename), state.video_encoders)
 
 
 def process(bundle: str, state: State):
@@ -168,9 +169,7 @@ class ExtractCommand(BaseArgs):
     all_video: bool = False  # Extract all video bundles
     all_images: bool = False  # Extract all image bundles
 
-    recode_video: bool = False  # Recode h264 in videos
     convert_binary_tables: bool = False  # Allows converting binary tables into CSV files (WARNING: not everything is supported)
-    nvenc: bool = False  # Use NVenc to recode
     raw_audio: bool = False  # Store extracted audio from ACB/AWB as WAV files instead of converting them to MP3
 
     all: bool = False  # Extract all I can find
@@ -188,7 +187,7 @@ def extract_cmd(args: ExtractCommand):
     args.process_args()
     ss = build_source_set(args)
 
-    state = State(ss, args.output, args.decrypt_key, args.recode_video, args.nvenc, args.convert_binary_tables, not args.raw_audio)
+    state = State(ss, args.output, args.decrypt_key, args.convert_binary_tables, not args.raw_audio)
 
     if any(bundle.endswith('.acb') for bundle in args.bundles) or args.all_audio or args.all:
         state.load_cues()
@@ -214,6 +213,9 @@ def extract_cmd(args: ExtractCommand):
 
     video_bundles = [bundle for bundle in listed_bundles if bundle.endswith('.usm')]
     if len(video_bundles) > 0:
+        for encoder in state.video_encoders:
+            encoder.setup()
+
         logger.info(f"Processing {len(video_bundles)} video bundles")
         execute_in_pool(video_bundles, state, args.cache, max_workers=5, checkpoint_step=1)
 

@@ -1,9 +1,12 @@
+import logging
 import os
 import tempfile
 from typing import Union
-
 import PyCriCodecs
-from ffmpeg import FFmpeg
+
+from pgr_assets.extractors.video_encoders import BaseVideoEncoder, Track
+
+logger = logging.getLogger(__name__)
 
 
 class PGRUSM(PyCriCodecs.USM):
@@ -43,62 +46,36 @@ class PGRUSM(PyCriCodecs.USM):
             i += 1
 
 
-    def extract_video(self, outfile: str, recode=False, nvenc=False):
+    def extract_video(self, base_outfile: str, encoders: list[BaseVideoEncoder]):
         self.stream.seek(0)
         if not self.demuxed:
             self.demux()
 
-        # Create dir if not exists
-        os.makedirs(os.path.dirname(outfile), exist_ok=True)
-
         with tempfile.TemporaryDirectory() as tempdir:
-            metadata = {}
-            mapping = []
-            audio_track_number = 0
-            files = []
+            videos: list[Track] = []
+            audios: list[Track] = []
+
             for i, (k, v) in enumerate(self.output.items()):
-                # I'm not sure what this is... ffmpeg doesn't either
+                # Subtitles not supported (yet)
                 if k.startswith("@SBT_"):
                     continue
 
                 path = os.path.join(tempdir, k)
                 with open(path, "wb") as f:
                     f.write(v)
-                files.append(path)
 
-                if '@SFA' in k:
-                    mapping.append(f"{i}:a")
-                    if k in self.audio_language:
-                        metadata[f'metadata:s:a:{audio_track_number}'] = 'language=' + self.audio_language[k]
-                    audio_track_number += 1
-                elif '@SFV' in k:
-                    mapping.append(f"{i}:v")
+                t = Track(k, path)
+                if k.startswith('@SFA_'):
+                    if (language := self.audio_language.get(k, None)) is not None:
+                        t.language = language
+                    audios.append(t)
+                elif k.startswith('@SFV_'):
+                    videos.append(t)
+                else:
+                    logger.warning('Unknown stream: %s', k)
 
-            # FFMPEG the shit out of it
-            ffmpeg = FFmpeg().option("y").option("hwaccel", "auto")
-
-            for i, f in enumerate(files):
-                ffmpeg.input(f)
-
-            encoder = "copy"
-            if recode and nvenc:
-                encoder = "h264_nvenc"
-            elif recode:
-                encoder = "h264"
-
-            ffmpeg.output(
-                outfile,
-                {
-                    "c:v": encoder,
-                    "movflags": "+faststart",
-                    "c:a": "mp3",
-                    "ar": "44100",
-                    "q:a": "2",
-                    **metadata,
-                },
-                map=mapping,
-            )
-            ffmpeg.execute()
+            for encoder in encoders:
+                encoder.encode(base_outfile, videos, audios)
 
 def ffmpeg_language_code(text: str) -> str | None:
     """
