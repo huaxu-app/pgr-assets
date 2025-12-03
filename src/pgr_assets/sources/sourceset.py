@@ -3,17 +3,19 @@ from typing import Union, Tuple
 
 from . import PatchCdn, PatchCdnSource, ObbSource, PcStarterSource, PcStarterCdn
 
-logger = logging.getLogger('sourceset')
+logger = logging.getLogger("sourceset")
+
 
 class BlobNotFoundException(Exception):
     pass
+
 
 class SourceSet:
     def __init__(self):
         self.sources = []
 
     def add_primary(self, primary_type: str, obb: Union[str, None], prerelease: bool):
-        if primary_type == 'obb':
+        if primary_type == "obb":
             impl = ObbSource(obb)
         elif primary_type in PcStarterCdn.__members__:
             impl = PcStarterSource(PcStarterCdn[primary_type], prerelease)
@@ -34,9 +36,11 @@ class SourceSet:
             # Patch never has .patch versions even if pc has them
             if len(version_nibbles) == 3 and version_nibbles[-1] != 0:
                 version_nibbles = (version_nibbles[0], version_nibbles[1], 0)
-            version = '%d.%d.%d' % version_nibbles
+            version = "%d.%d.%d" % version_nibbles
         if version is None:
-            raise Exception("Patch version required, and could not be inferred from earlier sources")
+            raise Exception(
+                "Patch version required, and could not be inferred from earlier sources"
+            )
 
         impl = PatchCdnSource(PatchCdn[patch_type], version)
 
@@ -56,10 +60,14 @@ class SourceSet:
         return None
 
     def disable_primary(self):
-        self.sources = [source for source in self.sources if isinstance(source, PatchCdnSource)]
+        self.sources = [
+            source for source in self.sources if isinstance(source, PatchCdnSource)
+        ]
 
     def list_all_bundles(self):
-        return set(bundle for source in self.sources for bundle in source.bundle_names())
+        return set(
+            bundle for source in self.sources for bundle in source.bundle_names()
+        )
 
     def bundle_to_blob(self, bundle):
         for source in reversed(self.sources):
@@ -84,7 +92,7 @@ class SourceSet:
         logger.debug(f"Bundle {bundle} -> blob {blob}")
 
         # Then find the first source that has the blob
-        for source in reversed(self.sources):
+        for source in self.sources:
             if source.has_blob(blob):
                 logger.debug(f"Downloading blob {blob} from {source}")
                 try:
