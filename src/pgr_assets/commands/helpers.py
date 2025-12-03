@@ -47,9 +47,6 @@ def build_source_set(args: BaseArgs) -> SourceSet:
     if args.preset is not None:
         patch = PRESETS[args.preset]
 
-    if patch is None:
-        raise ValueError('Patch source must be specified')
-
     if args.obb is not None and args.version is None:
         raise ValueError('Version must be specified when using an obb file as the primary source')
 
@@ -70,7 +67,8 @@ def build_source_set(args: BaseArgs) -> SourceSet:
         args.decrypt_key = determine_decryption_key(version)
         UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
 
-    source_set.add_patch(patch, args.version)
+    if patch is not None:
+        source_set.add_patch(patch, args.version)
 
     if args.decrypt_key is None:
         raise RuntimeError("No decryption key was able to be determined. Specify manually!")

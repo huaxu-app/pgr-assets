@@ -1,6 +1,8 @@
 import logging
 from typing import Union, Tuple
 
+import UnityPy
+import msgpack
 import requests
 
 from . import Source
@@ -31,7 +33,8 @@ class PcStarterCdn(Enum):
 
 class PcStarterSource(Source):
     _logger = logging.getLogger('PcStarterSource')
-    _index = None
+    _cdn_index = None
+    _matrix_index = None
     _resources = None
     _section: str
 
@@ -40,13 +43,26 @@ class PcStarterSource(Source):
         self._cdn = cdn.value
         self._section = 'predownload' if prerelease else 'default'
 
-    def index(self):
-        if self._index is not None:
-            return self._index
+    def cdn_index(self):
+        if self._cdn_index is not None:
+            return self._cdn_index
 
         self._logger.debug("Getting index from launcher cdn")
-        self._index = self._get_json(self._cdn.index_url())
-        return self._index
+        self._cdn_index = self._get_json(self._cdn.index_url())
+        return self._cdn_index
+
+    def matrix_index(self):
+        if self._matrix_index is not None:
+            return self._matrix_index
+
+        env = UnityPy.load(self.get_blob('index'))
+
+        if 'assets/temp/index.bytes' in env.container:
+            self._matrix_index = msgpack.loads(env.container['assets/temp/index.bytes'].read().m_Script.encode("utf-8", "surrogateescape"), strict_map_key=False)[0]
+        else:
+            raise Exception("Failed to find index in patch index bundle")
+
+        return self._matrix_index
 
     def has_blob(self, blob: str) -> bool:
         return blob in self.resources()
@@ -60,25 +76,31 @@ class PcStarterSource(Source):
         return resp.content
 
     def version(self) -> Union[Tuple[int, ...], None]:
-        return tuple(int(s) for s in self.index()[self._section]['version'].split('.'))
+        return tuple(int(s) for s in self.cdn_index()[self._section]['version'].split('.'))
 
     def base_path(self):
-        url = self.index()[self._section]['resourcesBasePath']
+        url = self.cdn_index()[self._section]['resourcesBasePath']
         if url[-1] != '/':
             url += '/'
         return url
 
     def blob_cdn_url(self):
-        url = self.index()['default']['cdnList'][0]['url']
+        url = self.cdn_index()['default']['cdnList'][0]['url']
         if url[-1] != '/':
             url += '/'
         return url
 
     def bundle_to_blob(self, bundle: str) -> Union[str, None]:
-        return None
+        try:
+            return self.matrix_index()[bundle][0]
+        except KeyError:
+            return None
 
     def bundle_sha1(self, bundle: str) -> Union[str, None]:
-        return None
+        try:
+            return self.matrix_index()[bundle][1]
+        except KeyError:
+            return None
 
     def resources(self):
         if self._resources is not None:
@@ -86,7 +108,7 @@ class PcStarterSource(Source):
 
         blob_base = self.blob_cdn_url()
 
-        resource_index = self._get_json(blob_base + self.index()[self._section]['resources'])
+        resource_index = self._get_json(blob_base + self.cdn_index()[self._section]['resources'])
         resources = {}
         for resource in resource_index['resource']:
             dest = resource['dest']
@@ -99,7 +121,7 @@ class PcStarterSource(Source):
         return resources
 
     def bundle_names(self):
-        return []
+        return self.matrix_index().keys()
 
     @staticmethod
     def _get_json(url: str) -> dict:

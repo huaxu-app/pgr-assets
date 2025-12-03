@@ -62,14 +62,14 @@ class SourceSet:
         return set(bundle for source in self.sources for bundle in source.bundle_names())
 
     def bundle_to_blob(self, bundle):
-        for source in self.sources:
+        for source in reversed(self.sources):
             blob = source.bundle_to_blob(bundle)
             if blob is not None:
                 return blob
         return None
 
     def bundle_sha1(self, bundle):
-        for source in self.sources:
+        for source in reversed(self.sources):
             sha1 = source.bundle_sha1(bundle)
             if sha1 is not None:
                 return sha1
@@ -84,7 +84,7 @@ class SourceSet:
         logger.debug(f"Bundle {bundle} -> blob {blob}")
 
         # Then find the first source that has the blob
-        for source in self.sources:
+        for source in reversed(self.sources):
             if source.has_blob(blob):
                 logger.debug(f"Downloading blob {blob} from {source}")
                 try:
