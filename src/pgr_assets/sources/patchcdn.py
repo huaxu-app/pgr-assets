@@ -27,23 +27,45 @@ class PatchCdnData:
     cdn: str
     app_id: str
     platform: str
+    key: str
     sign: bool = False
 
     def config_url(self, version: str):
-        return f"{self.cdn}/client/config/{self.app_id}/{version}/{self.platform}/config.tab"
+        path = [
+            self.cdn,
+            "client/config",
+        ]
+
+        if tuple(int(x) for x in version.split(".")) >= (4, 3, 0):
+            path += [self.key]
+
+        path += [
+            self.app_id,
+            version,
+            self.platform,
+            "config.tab",
+        ]
+
+        return "/".join(path)
 
     def base_url(self, application_version: str, document_version: str):
-        return "/".join(
-            [
-                self.cdn,
-                "client/patch",
-                self.app_id,
-                application_version,
-                self.platform,
-                document_version,
-                "matrix/",
-            ]
-        )
+        path = [
+            self.cdn,
+            "client/patch",
+        ]
+
+        if tuple(int(x) for x in application_version.split(".")) >= (4, 3, 0):
+            path += [self.key]
+
+        path += [
+            self.app_id,
+            application_version,
+            self.platform,
+            document_version,
+            "matrix/",
+        ]
+
+        return "/".join(path)
 
 
 # CDN base url, app_id, platform From the config tab PrimaryCdn
@@ -53,43 +75,51 @@ class PatchCdn(Enum):
         "http://prod-encdn-volcdn.kurogame.net/prod",
         "com.kurogame.punishing.grayraven.en",
         "android",
+        "VCAw4wx7IseFdBto",
     )
     EN_PC = PatchCdnData(
         "http://prod-encdn-volcdn.kurogame.net/prod",
         "com.kurogame.punishing.grayraven.en.pc",
         "standalone",
+        "VCAw4wx7IseFdBto",
     )
     KR = PatchCdnData(
         "http://prod-krcdn-volcdn.kurogame.net/prod",
         "com.herogame.punishing.grayraven.kr",
         "android",
+        "S9kc2n1DdQZx016f",
     )
     KR_PC = PatchCdnData(
         "http://prod-krcdn-volcdn.kurogame.net/prod",
         "com.herogame.pc.punishing.grayraven.kr",
         "standalone",
+        "S9kc2n1DdQZx016f",
     )
 
     JP = PatchCdnData(
         "http://prod-jpcdn-volcdn.kurogame.net/prod",
         "com.herogame.gplay.punishing.grayraven.jp",
         "android",
+        "Wc9THPdziNGrTlL6",
     )
     JP_PC = PatchCdnData(
         "http://prod-jpcdn-volcdn.kurogame.net/prod",
         "com.herogame.pc.punishing.grayraven.jp",
         "standalone",
+        "Wc9THPdziNGrTlL6",
     )
 
     TW = PatchCdnData(
         "http://prod-twcdn-volcdn.kurogame.net/prod",
         "com.herogame.gplay.punishing.grayraven.tw",
         "android",
+        "qYcsmgXgAl6uX9QW",
     )
     TW_PC = PatchCdnData(
         "http://prod-twcdn-volcdn.kurogame.net/prod",
         "com.herogame.pc.punishing.grayraven.tw",
         "standalone",
+        "qYcsmgXgAl6uX9QW",
     )
 
     # http://prod.zspnsalicdn.yingxiong.com/prod/client/config/com.kurogame.haru.kuro/2.9.0/standalone/config.tab
@@ -97,23 +127,27 @@ class PatchCdn(Enum):
         "http://prod-zspns-volccdn.kurogame.com/prod",
         "com.kurogame.haru.kuro",
         "android",
+        "EGE2QCJHK7MoHFBn",
     )
     CN_PC = PatchCdnData(
         "http://prod-zspns-volccdn.kurogame.com/prod",
         "com.kurogame.haru.kuro",
         "standalone",
+        "EGE2QCJHK7MoHFBn",
     )
 
     CN_BETA = PatchCdnData(
         "http://prod-zspns-volccdn.kurogame.com/prod",
         "com.kurogame.haru.kuro",
         "android",
+        "",
         sign=True,
     )
     CN_PC_BETA = PatchCdnData(
         "http://prod-zspns-volccdn.kurogame.com/prod",
         "com.kurogame.haru.kuro",
         "standalone",
+        "",
         sign=True,
     )
 
