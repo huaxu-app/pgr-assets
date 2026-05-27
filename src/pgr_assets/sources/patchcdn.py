@@ -75,51 +75,51 @@ class PatchCdn(Enum):
         "http://prod-encdn-volcdn.kurogame.net/prod",
         "com.kurogame.punishing.grayraven.en",
         "android",
-        "VCAw4wx7IseFdBto",
+        "R0bYNv1p0RHLXEEe",
     )
     EN_PC = PatchCdnData(
         "http://prod-encdn-volcdn.kurogame.net/prod",
-        "com.kurogame.punishing.grayraven.en.pc",
+        "com.kurogame.punishing.grayraven.en",
         "standalone",
-        "VCAw4wx7IseFdBto",
+        "R0bYNv1p0RHLXEEe",
     )
     KR = PatchCdnData(
         "http://prod-krcdn-volcdn.kurogame.net/prod",
-        "com.herogame.punishing.grayraven.kr",
+        "com.kurogame.punishing.grayraven.kr",
         "android",
-        "S9kc2n1DdQZx016f",
+        "sPWBqLRwE3jwdwGm",
     )
     KR_PC = PatchCdnData(
         "http://prod-krcdn-volcdn.kurogame.net/prod",
-        "com.herogame.pc.punishing.grayraven.kr",
+        "com.kurogame.punishing.grayraven.kr",
         "standalone",
-        "S9kc2n1DdQZx016f",
+        "sPWBqLRwE3jwdwGm",
     )
 
     JP = PatchCdnData(
         "http://prod-jpcdn-volcdn.kurogame.net/prod",
-        "com.herogame.gplay.punishing.grayraven.jp",
+        "com.kurogame.punishing.grayraven.jp",
         "android",
-        "Wc9THPdziNGrTlL6",
+        "tQ00SXg6pY4lVc9k",
     )
     JP_PC = PatchCdnData(
         "http://prod-jpcdn-volcdn.kurogame.net/prod",
-        "com.herogame.pc.punishing.grayraven.jp",
+        "com.kurogame.punishing.grayraven.jp",
         "standalone",
-        "Wc9THPdziNGrTlL6",
+        "tQ00SXg6pY4lVc9k",
     )
 
     TW = PatchCdnData(
         "http://prod-twcdn-volcdn.kurogame.net/prod",
-        "com.herogame.gplay.punishing.grayraven.tw",
+        "com.kurogame.punishing.grayraven.tw",
         "android",
-        "qYcsmgXgAl6uX9QW",
+        "WhrNLC4EUQJGJOmF",
     )
     TW_PC = PatchCdnData(
         "http://prod-twcdn-volcdn.kurogame.net/prod",
-        "com.herogame.pc.punishing.grayraven.tw",
+        "com.kurogame.punishing.grayraven.tw",
         "standalone",
-        "qYcsmgXgAl6uX9QW",
+        "WhrNLC4EUQJGJOmF",
     )
 
     # http://prod.zspnsalicdn.yingxiong.com/prod/client/config/com.kurogame.haru.kuro/2.9.0/standalone/config.tab
@@ -127,13 +127,13 @@ class PatchCdn(Enum):
         "http://prod-zspns-volccdn.kurogame.com/prod",
         "com.kurogame.haru.kuro",
         "android",
-        "EGE2QCJHK7MoHFBn",
+        "Tk06VWjajcajO0Tz",
     )
     CN_PC = PatchCdnData(
         "http://prod-zspns-volccdn.kurogame.com/prod",
         "com.kurogame.haru.kuro",
         "standalone",
-        "EGE2QCJHK7MoHFBn",
+        "Tk06VWjajcajO0Tz",
     )
 
     CN_BETA = PatchCdnData(

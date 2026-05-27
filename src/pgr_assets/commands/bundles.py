@@ -32,6 +32,7 @@ def process(bundle: str, state: State):
         with open(os.path.join(state.output_dir, bundle), 'wb') as f:
             f.write(bundle_data)
         logger.debug(f"Downloaded {bundle}")
+        return bundle
     except Exception as e:
         logger.exception(f"Failed to download {bundle}", exc_info=e)
         return None
