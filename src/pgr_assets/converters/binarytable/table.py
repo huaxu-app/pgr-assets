@@ -1,16 +1,17 @@
 import csv
 from dataclasses import dataclass
-from typing import BinaryIO, List, IO, Dict
+from typing import BinaryIO, List, IO, Dict, cast
 
 from .reader import Reader
+
 
 @dataclass
 class Column:
     name: str
     type: int
     list_length: int = 0
-    dict_keys: list = None
-    dict_key_presence: set = None
+    dict_keys: list | None = None
+    dict_key_presence: set | None = None
 
     def is_dict_type(self):
         return 9 <= self.type <= 13
@@ -19,13 +20,14 @@ class Column:
         return self.type == 10 or self.type == 11 or self.type == 13
 
     def add_dict_key(self, key):
-        if self.dict_keys is None:
+        if self.dict_keys is None or self.dict_key_presence is None:
             self.dict_keys = list()
             self.dict_key_presence = set()
 
         if key not in self.dict_key_presence:
             self.dict_key_presence.add(key)
             self.dict_keys.append(key)
+
 
 class BinaryTable:
     reader: Reader
@@ -34,7 +36,7 @@ class BinaryTable:
     columns: List[Column]
 
     has_primary_key: bool
-    primary_key: str|None
+    primary_key: str | None
     primary_key_length: int
 
     row_trunk_length: int
@@ -75,7 +77,7 @@ class BinaryTable:
             self.columns.append(Column(column_name, column_type))
 
         self.has_primary_key = self.reader.read_bool()
-        self.primary_key = ''
+        self.primary_key = ""
         self.primary_key_length = 0
         if self.has_primary_key:
             if self.enable_string_pool:
@@ -94,10 +96,18 @@ class BinaryTable:
             self.row_count = 0
 
     def _get_pool_offset_trunk_start_position(self):
-        return 4 + self.info_length + self.primary_key_length + self.row_trunk_length + self.content_trunk_length
+        return (
+            4
+            + self.info_length
+            + self.primary_key_length
+            + self.row_trunk_length
+            + self.content_trunk_length
+        )
 
     def _get_pool_content_trunk_start_position(self):
-        return self._get_pool_offset_trunk_start_position() + self.pool_content_start_pos
+        return (
+            self._get_pool_offset_trunk_start_position() + self.pool_content_start_pos
+        )
 
     def _read_string_pool_info(self):
         if self.content_trunk_length == 0:
@@ -128,7 +138,9 @@ class BinaryTable:
         pool_column_len = self.reader.read_int() or 0
         pool_offset_trunk_len = self.reader.read_int() or 0
         pool_info_offset_len = pool_head_length + 4
-        self.pool_content_start_pos = pool_info_offset_len + pool_column_len + pool_offset_trunk_len
+        self.pool_content_start_pos = (
+            pool_info_offset_len + pool_column_len + pool_offset_trunk_len
+        )
 
         if pool_column_len <= 0:
             return
@@ -178,7 +190,9 @@ class BinaryTable:
             self.rows = []
             return
 
-        self.reader.seek(4 + self.info_length + self.primary_key_length + self.row_trunk_length)
+        self.reader.seek(
+            4 + self.info_length + self.primary_key_length + self.row_trunk_length
+        )
         self.rows = [self._row(i) for i in range(self.row_count)]
 
     def _row(self, row_index: int):
@@ -188,16 +202,18 @@ class BinaryTable:
             try:
                 value = self.reader.read_by_column_type(column.type)
             except Exception as e:
-                raise Exception(f"Error reading column {column.name} at row {row_index}", e)
+                raise Exception(
+                    f"Error reading column {column.name} at row {row_index}", e
+                )
 
             row.append(value)
 
             if type(value) is list and len(value) > column.list_length:
                 column.list_length = len(value)
-            elif column.is_int_keyed_dict() and len(value) > 0:
-                column.list_length = max(column.list_length, *value.keys())
+            elif column.is_int_keyed_dict() and len(cast(dict, value)) > 0:
+                column.list_length = max(column.list_length, *cast(dict, value).keys())
             elif column.is_dict_type():
-                for key in value.keys():
+                for key in cast(dict, value).keys():
                     column.add_dict_key(key)
 
         return row
@@ -219,14 +235,14 @@ class BinaryTable:
             # Int dicts are lists if we squint hard enough
             if column.is_int_keyed_dict():
                 for i in range(column.list_length):
-                    yield value.get(i + 1, '')
+                    yield value.get(i + 1, "")
             elif column.list_length > 0:
                 for i in range(column.list_length):
-                    yield value[i] if i < len(value) else ''
+                    yield value[i] if i < len(value) else ""
             # Stringy dicts have their own global key list
             elif column.is_dict_type():
                 for k in column.dict_keys or []:
-                    yield value.get(k, '')
+                    yield value.get(k, "")
             else:
                 yield value
 
@@ -235,6 +251,3 @@ class BinaryTable:
         writer.writerow(self.csv_headers())
         for row in self.rows:
             writer.writerow(self.csv_row(row))
-
-
-

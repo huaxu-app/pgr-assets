@@ -10,9 +10,9 @@ from typing import Union, Dict, Tuple, Iterable, Optional
 from urllib.parse import urlparse
 
 import UnityPy
-import msgpack
 
 from . import Source
+from ._index import read_textasset_bytes, loads_index
 from .session import get_session
 
 SIGN_ALPHABET = string.ascii_letters + string.digits
@@ -54,7 +54,10 @@ class PatchCdnData:
             "client/patch",
         ]
 
-        if self.key and tuple(int(x) for x in application_version.split(".")) >= (4, 3, 0):
+        application_version_tuple = tuple(
+            int(x) for x in application_version.split(".")
+        )
+        if self.key and application_version_tuple >= (4, 3, 0):
             path += [self.key]
 
         path += [
@@ -144,8 +147,8 @@ class PatchCdnSource(Source):
     _logger = logging.getLogger("PatchCdnSource")
     _cdn_name: str
     _cdn: PatchCdnData
-    _index = None
-    _resources = None
+    _index: Dict[str, Tuple[str, str, int]] | None = None
+    _resources: Dict[str, str] | None = None
     _sign_key: str | None = None
 
     def __init__(self, cdn: PatchCdn, version: str, key: Optional[str] = None):
@@ -223,26 +226,19 @@ class PatchCdnSource(Source):
         env = UnityPy.load(bundle.content)
 
         if "assets/temp/index.bytes" in env.container:
-            self._index = msgpack.loads(
-                env.container["assets/temp/index.bytes"]
-                .read()
-                .m_Script.encode("utf-8", "surrogateescape"),
-                strict_map_key=False,
-            )[0]
+            index = loads_index(read_textasset_bytes(env, "assets/temp/index.bytes"))[0]
         elif "assets/buildtemp/index.bytes" in env.container:
-            partial_indices = msgpack.loads(
-                env.container["assets/buildtemp/index.bytes"]
-                .read()
-                .m_Script.encode("utf-8", "surrogateescape"),
-                strict_map_key=False,
+            partial_indices = loads_index(
+                read_textasset_bytes(env, "assets/buildtemp/index.bytes")
             )
-            self._index = partial_indices[0]
+            index = partial_indices[0]
             for v in partial_indices[1].values():
-                self._index.update(v)
+                index.update(v)
         else:
             raise Exception("Failed to find index in patch index bundle")
 
-        return self._index
+        self._index = index
+        return index
 
     def version(self) -> Union[Tuple[int, ...], None]:
         return tuple(int(s) for s in self._version.split("."))

@@ -2,9 +2,9 @@ import logging
 from typing import Union, Tuple
 
 import UnityPy
-import msgpack
 
 from . import Source
+from ._index import read_textasset_bytes, loads_index
 from .session import get_session
 from dataclasses import dataclass
 from enum import Enum
@@ -14,34 +14,64 @@ from enum import Enum
 class PcStarterData:
     cdn: str
     game_id: int
-    iteration: int|str
+    iteration: int | str
     predownload: bool
 
     def index_url(self):
-        return f'{self.cdn}game/G{self.game_id}/{self.iteration}/index.json'
+        return f"{self.cdn}game/G{self.game_id}/{self.iteration}/index.json"
 
 
 class PcStarterCdn(Enum):
-    #EN_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 143, 4, False)
-    EN_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/launcher/', 143, '50015_LWdk9D2Ep9mpJmqBZZkcPBU2YNraEWBQ', False)
-    KR_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/launcher/', 286, '50011_XefwDdpgPxxLABoTOD0yuqTFBC3koJZ0', False)
-    JP_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/launcher/', 282, '50007_NxWGZ0d254oWqZKuuL6szOK7WRLPt668', False)
-    TW_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/launcher/', 279, '50016_i2n5NLmdCAmOGP3J1tJOlWKNSMQuyWL7', False)
-    CN_PC = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/', 148, '10011_qYQv6TyyyhCKD3ox3gssyolNPwMoCPZt', False)
-    CN_PC_BETA = PcStarterData('https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/', 148, '10013_Gp9Gz1u9I5eyllXu64TfWhaPBQFXB449', False)
+    # EN_PC = PcStarterData('https://prod-alicdn-gamestarter.kurogame.com/', 143, 4, False)
+    EN_PC = PcStarterData(
+        "https://prod-alicdn-gamestarter.kurogame.com/launcher/",
+        143,
+        "50015_LWdk9D2Ep9mpJmqBZZkcPBU2YNraEWBQ",
+        False,
+    )
+    KR_PC = PcStarterData(
+        "https://prod-alicdn-gamestarter.kurogame.com/launcher/",
+        286,
+        "50011_XefwDdpgPxxLABoTOD0yuqTFBC3koJZ0",
+        False,
+    )
+    JP_PC = PcStarterData(
+        "https://prod-alicdn-gamestarter.kurogame.com/launcher/",
+        282,
+        "50007_NxWGZ0d254oWqZKuuL6szOK7WRLPt668",
+        False,
+    )
+    TW_PC = PcStarterData(
+        "https://prod-alicdn-gamestarter.kurogame.com/launcher/",
+        279,
+        "50016_i2n5NLmdCAmOGP3J1tJOlWKNSMQuyWL7",
+        False,
+    )
+    CN_PC = PcStarterData(
+        "https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/",
+        148,
+        "10011_qYQv6TyyyhCKD3ox3gssyolNPwMoCPZt",
+        False,
+    )
+    CN_PC_BETA = PcStarterData(
+        "https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/",
+        148,
+        "10013_Gp9Gz1u9I5eyllXu64TfWhaPBQFXB449",
+        False,
+    )
 
 
 class PcStarterSource(Source):
-    _logger = logging.getLogger('PcStarterSource')
-    _cdn_index = None
-    _matrix_index = None
-    _resources = None
+    _logger = logging.getLogger("PcStarterSource")
+    _cdn_index: dict | None = None
+    _matrix_index: dict | None = None
+    _resources: dict | None = None
     _section: str
 
     def __init__(self, cdn: PcStarterCdn, prerelease: bool):
         self._cdn_name = cdn.name
         self._cdn = cdn.value
-        self._section = 'predownload' if prerelease else 'default'
+        self._section = "predownload" if prerelease else "default"
 
     def cdn_index(self):
         if self._cdn_index is not None:
@@ -51,18 +81,18 @@ class PcStarterSource(Source):
         self._cdn_index = self._get_json(self._cdn.index_url())
         return self._cdn_index
 
-    def matrix_index(self):
+    def matrix_index(self) -> dict:
         if self._matrix_index is not None:
             return self._matrix_index
 
-        env = UnityPy.load(self.get_blob('index'))
+        env = UnityPy.load(self.get_blob("index"))
 
-        if 'assets/temp/index.bytes' in env.container:
-            self._matrix_index = msgpack.loads(env.container['assets/temp/index.bytes'].read().m_Script.encode("utf-8", "surrogateescape"), strict_map_key=False)[0]
-        else:
+        if "assets/temp/index.bytes" not in env.container:
             raise Exception("Failed to find index in patch index bundle")
 
-        return self._matrix_index
+        index = loads_index(read_textasset_bytes(env, "assets/temp/index.bytes"))[0]
+        self._matrix_index = index
+        return index
 
     def has_blob(self, blob: str) -> bool:
         return blob in self.resources()
@@ -76,18 +106,20 @@ class PcStarterSource(Source):
         return resp.content
 
     def version(self) -> Union[Tuple[int, ...], None]:
-        return tuple(int(s) for s in self.cdn_index()[self._section]['version'].split('.'))
+        return tuple(
+            int(s) for s in self.cdn_index()[self._section]["version"].split(".")
+        )
 
     def base_path(self):
-        url = self.cdn_index()[self._section]['resourcesBasePath']
-        if url[-1] != '/':
-            url += '/'
+        url = self.cdn_index()[self._section]["resourcesBasePath"]
+        if url[-1] != "/":
+            url += "/"
         return url
 
     def blob_cdn_url(self):
-        url = self.cdn_index()['default']['cdnList'][0]['url']
-        if url[-1] != '/':
-            url += '/'
+        url = self.cdn_index()["default"]["cdnList"][0]["url"]
+        if url[-1] != "/":
+            url += "/"
         return url
 
     def bundle_to_blob(self, bundle: str) -> Union[str, None]:
@@ -108,14 +140,16 @@ class PcStarterSource(Source):
 
         blob_base = self.blob_cdn_url()
 
-        resource_index = self._get_json(blob_base + self.cdn_index()[self._section]['resources'])
+        resource_index = self._get_json(
+            blob_base + self.cdn_index()[self._section]["resources"]
+        )
         resources = {}
-        for resource in resource_index['resource']:
-            dest = resource['dest']
+        for resource in resource_index["resource"]:
+            dest = resource["dest"]
             # remove prefix slash if set
-            if dest[0] == '/':
+            if dest[0] == "/":
                 dest = dest[1:]
-            blob = dest.split('/')[-1]
+            blob = dest.split("/")[-1]
             resources[blob] = blob_base + self.base_path() + dest
         self._resources = resources
         return resources

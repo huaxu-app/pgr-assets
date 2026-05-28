@@ -19,9 +19,17 @@ dependencies = [
 [project.scripts]
 pgr-assets = "pgr_assets:main"
 
+[dependency-groups]
+dev = ["pyright"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.pyright]
+include = ["src"]
+venvPath = "."
+venv = ".venv"

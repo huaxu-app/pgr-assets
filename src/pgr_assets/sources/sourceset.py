@@ -1,7 +1,7 @@
 import logging
 from typing import Union, Tuple
 
-from . import PatchCdn, PatchCdnSource, ObbSource, PcStarterSource, PcStarterCdn
+from . import PatchCdn, PatchCdnSource, ObbSource, PcStarterSource, PcStarterCdn, Source
 from .xbuildconfig import extract_build_key
 
 logger = logging.getLogger("sourceset")
@@ -13,10 +13,11 @@ class BlobNotFoundException(Exception):
 
 class SourceSet:
     def __init__(self):
-        self.sources = []
+        self.sources: list[Source] = []
 
     def add_primary(self, primary_type: str, obb: Union[str, None], prerelease: bool):
         if primary_type == "obb":
+            assert obb is not None, "obb path required when primary is 'obb'"
             impl = ObbSource(obb)
         elif primary_type in PcStarterCdn.__members__:
             impl = PcStarterSource(PcStarterCdn[primary_type], prerelease)
@@ -33,11 +34,13 @@ class SourceSet:
             raise Exception(f"Unknown patch type {patch_type}")
 
         if version is None:
-            version_nibbles = self.version()[:3]
-            # Patch never has .patch versions even if pc has them
-            if len(version_nibbles) == 3 and version_nibbles[-1] != 0:
-                version_nibbles = (version_nibbles[0], version_nibbles[1], 0)
-            version = "%d.%d.%d" % version_nibbles
+            inferred = self.version()
+            if inferred is not None:
+                version_nibbles = inferred[:3]
+                # Patch never has .patch versions even if pc has them
+                if len(version_nibbles) == 3 and version_nibbles[-1] != 0:
+                    version_nibbles = (version_nibbles[0], version_nibbles[1], 0)
+                version = "%d.%d.%d" % version_nibbles
         if version is None:
             raise Exception(
                 "Patch version required, and could not be inferred from earlier sources"

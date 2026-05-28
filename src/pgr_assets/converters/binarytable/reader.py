@@ -28,29 +28,44 @@ class Reader:
 
     def read_by_column_type(self, type: int):
         match type:
-            case 1: return self.read_bool()
-            case 2: return self.read_string()
-            case 3: return self.read_fix()
-            case 4: return self.read_list_string()
-            case 5: return self.read_list_bool()
-            case 6: return self.read_list_int()
-            case 7: return self.read_list_float()
-            case 8: return self.read_list_fix()
-            case 9: return self.read_dict_string_string()
-            case 10: return self.read_dict_int_int()
-            case 11: return self.read_dict_int_string()
-            case 12: return self.read_dict_string_int()
-            case 13: return self.read_dict_int_float()
-            case 14: return self.read_int()
-            case 15: return self.read_float()
-            case _: raise Exception(f"Unknown column type: {type}")
-
+            case 1:
+                return self.read_bool()
+            case 2:
+                return self.read_string()
+            case 3:
+                return self.read_fix()
+            case 4:
+                return self.read_list_string()
+            case 5:
+                return self.read_list_bool()
+            case 6:
+                return self.read_list_int()
+            case 7:
+                return self.read_list_float()
+            case 8:
+                return self.read_list_fix()
+            case 9:
+                return self.read_dict_string_string()
+            case 10:
+                return self.read_dict_int_int()
+            case 11:
+                return self.read_dict_int_string()
+            case 12:
+                return self.read_dict_string_int()
+            case 13:
+                return self.read_dict_int_float()
+            case 14:
+                return self.read_int()
+            case 15:
+                return self.read_float()
+            case _:
+                raise Exception(f"Unknown column type: {type}")
 
     def read_u8(self):
-        return struct.unpack('<B', self.read_bytes(1))[0]
+        return struct.unpack("<B", self.read_bytes(1))[0]
 
     def read_i32(self):
-        return struct.unpack('<i', self.read_bytes(4))[0]
+        return struct.unpack("<i", self.read_bytes(4))[0]
 
     def read_leb128(self):
         result = 0
@@ -80,7 +95,7 @@ class Reader:
             if byte == 0:  # Null byte indicates the end of the string
                 break
             chars.append(byte)
-        return chars.decode('utf-8')
+        return chars.decode("utf-8")
 
     def read_int(self):
         x = self.read_leb128()
@@ -140,7 +155,7 @@ class Reader:
         # behavior maps either way, assume that if first byte is actually NUL we don't have to do anything
         if not self.new_fixnum:
             n = self.read_string()
-            if n == '':
+            if n == "":
                 return 0
             return Decimal(n)
 
@@ -177,8 +192,3 @@ class Reader:
 
     def get_position(self):
         return self.file.tell()
-
-
-
-
-

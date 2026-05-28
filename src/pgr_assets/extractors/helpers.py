@@ -6,8 +6,8 @@ from pgr_assets.converters.binarytable.table import BinaryTable
 
 
 def decrypt(content, offset=None, count=None):
-    x_crypto_key = bytearray(
-        [103, 40, 227, 236, 173, 175, 148, 243, 66, 252, 58, 22, 68, 192, 159, 15, 187, 15, 15, 29, 209, 209, 212, 66,
+    x_crypto_key = bytearray([
+        103, 40, 227, 236, 173, 175, 148, 243, 66, 252, 58, 22, 68, 192, 159, 15, 187, 15, 15, 29, 209, 209, 212, 66,
          104, 16, 252, 194, 227, 14, 116, 112, 196, 221, 5, 1, 4, 173, 165, 69, 45, 193, 95, 10, 67, 38, 167, 239, 96,
          184, 133, 75, 152, 196, 36, 121, 251, 7, 73, 82, 219, 25, 118, 70, 153, 232, 120, 120, 147, 10, 88, 106, 214,
          187, 216, 49, 224, 57, 1, 233, 110, 40, 65, 85, 246, 197, 4, 20, 56, 74, 245, 41, 63, 169, 188, 104, 89, 49,
@@ -17,7 +17,8 @@ def decrypt(content, offset=None, count=None):
          192, 91, 24, 33, 68, 101, 85, 61, 186, 215, 191, 37, 45, 51, 117, 227, 14, 145, 56, 43, 32, 67, 48, 98, 192,
          41, 136, 223, 50, 163, 97, 251, 174, 59, 59, 147, 237, 177, 31, 159, 52, 243, 245, 247, 148, 139, 21, 92, 139,
          80, 47, 4, 105, 59, 227, 220, 180, 231, 176, 187, 205, 203, 148, 121, 98, 90, 87, 131, 245, 3, 63, 239, 57,
-         117, 102, 134, 40, 172, 60, 128, 108, 102, 216, 247, 133, 102])
+         117, 102, 134, 40, 172, 60, 128, 108, 102, 216, 247, 133, 102
+    ])  # fmt: skip
     content = bytearray(content)
     if offset is None:
         offset = 0
@@ -47,31 +48,40 @@ def decrypt(content, offset=None, count=None):
     return content
 
 
-def is_utf8(data: bytes) -> bool:
+def is_utf8(data: bytes | bytearray) -> bool:
     try:
-        data.decode('utf-8')
+        data.decode("utf-8")
         return True
     except UnicodeDecodeError:
         return False
 
-def convert_to_csv(data: memoryview, game_version:tuple[int, int]) -> bytearray:
+
+def convert_to_csv(data: bytes | bytearray, game_version: tuple[int, int]) -> bytearray:
     try:
-        output = io.StringIO(newline='')
+        output = io.StringIO(newline="")
         table = BinaryTable(io.BytesIO(data), game_version)
         table.to_csv(output)
         return bytearray(output.getvalue().encode())
     except Exception as e:
         raise e
 
-def rewrite_text_asset(path: str, data: memoryview, game_version: tuple[int, int], allow_binary_table_convert=False) -> Tuple[str, bytearray]:
-    if '/temp/bytes/' in path:
-        if allow_binary_table_convert and path.endswith('.tab.bytes'):
+
+def rewrite_text_asset(
+    path: str,
+    data: bytes | bytearray,
+    game_version: tuple[int, int],
+    allow_binary_table_convert=False,
+) -> Tuple[str, bytes | bytearray]:
+    if "/temp/bytes/" in path:
+        if allow_binary_table_convert and path.endswith(".tab.bytes"):
             data = convert_to_csv(data, game_version)
-            path = path.replace('.tab.bytes', '.csv')
-            if path.endswith('.bytes'):
+            path = path.replace(".tab.bytes", ".csv")
+            if path.endswith(".bytes"):
                 # Extremely weird case where its usually a directory
                 path_without_bytes, _ = os.path.splitext(path)
-                path = os.path.join(path_without_bytes, os.path.basename(path_without_bytes) + '.csv')
+                path = os.path.join(
+                    path_without_bytes, os.path.basename(path_without_bytes) + ".csv"
+                )
     elif len(data) > 128 and not is_utf8(data):
         # RSA signature can fuck itself
         data = bytearray(data[128:])

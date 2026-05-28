@@ -7,12 +7,14 @@ from ffmpeg import FFmpeg, FFmpegError
 
 logger = logging.getLogger(__name__)
 
+
 @dataclasses.dataclass
 class Track:
     name: str
     path: str
 
     language: str | None = None
+
 
 class BaseVideoEncoder(typing.Protocol):
     def setup(self):
@@ -45,20 +47,25 @@ class BaseVideoEncoder(typing.Protocol):
         except FFmpegError as e:
             logger.exception(
                 (
-                        f"Error encoding video: {e}\n"
-                        + "arguments: "
-                        + " ".join(ffmpeg.arguments)
-                        + "\n"
-                        + "\n".join(err)
+                    f"Error encoding video: {e}\n"
+                    + "arguments: "
+                    + " ".join(ffmpeg.arguments)
+                    + "\n"
+                    + "\n".join(err)
                 ),
                 exc_info=True,
             )
             raise
 
+
 @lru_cache(maxsize=None)
 def check_encoder_available(encoder: str):
     try:
-        ffmpeg = FFmpeg().input("color=c=black:s=320x240:d=0.1", f="lavfi").output('-', f="null", vcodec=encoder)
+        ffmpeg = (
+            FFmpeg()
+            .input("color=c=black:s=320x240:d=0.1", f="lavfi")
+            .output("-", f="null", vcodec=encoder)
+        )
         ffmpeg.execute()
         return True
     except FFmpegError as e:

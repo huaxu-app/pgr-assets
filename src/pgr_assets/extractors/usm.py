@@ -1,7 +1,7 @@
 import logging
 import os
 import tempfile
-from typing import Union
+from typing import Union, cast, BinaryIO
 import PyCriCodecs
 
 from pgr_assets.extractors.video_encoders import BaseVideoEncoder, Track
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class PGRUSM(PyCriCodecs.USM):
-    audio_language: dict[str,str] = {}
+    audio_language: dict[str, str] = {}
 
     def __init__(self, filename, key: Union[str, int, bool] = False):
         super().__init__(filename, key)
@@ -37,14 +37,13 @@ class PGRUSM(PyCriCodecs.USM):
     def demux(self) -> None:
         super().demux()
 
-        filenames = self.CRIDObj.table.get('filename', [])
+        filenames = self.CRIDObj.table.get("filename", [])
         i = 1
         for k, v in self.output.items():
             if k.startswith("@SFA_"):
                 self.output[k] = PyCriCodecs.HCA(v, key=self.key).decode()
                 self.audio_language[k] = ffmpeg_language_code(filenames[i])
             i += 1
-
 
     def extract_video(self, base_outfile: str, encoders: list[BaseVideoEncoder]):
         self.stream.seek(0)
@@ -65,17 +64,18 @@ class PGRUSM(PyCriCodecs.USM):
                     f.write(v)
 
                 t = Track(k, path)
-                if k.startswith('@SFA_'):
+                if k.startswith("@SFA_"):
                     if (language := self.audio_language.get(k, None)) is not None:
                         t.language = language
                     audios.append(t)
-                elif k.startswith('@SFV_'):
+                elif k.startswith("@SFV_"):
                     videos.append(t)
                 else:
-                    logger.warning('Unknown stream: %s', k)
+                    logger.warning("Unknown stream: %s", k)
 
             for encoder in encoders:
                 encoder.encode(base_outfile, videos, audios)
+
 
 def ffmpeg_language_code(text: str) -> str | None:
     """
@@ -89,7 +89,7 @@ def ffmpeg_language_code(text: str) -> str | None:
         "jp": "ja",  # Japanese
         "en": "en",  # English
         "cn": "zh",  # Chinese (Simplified/Mandarin)
-        "ct": "yue", # Cantonese (Traditional Chinese audio)
+        "ct": "yue",  # Cantonese (Traditional Chinese audio)
     }
 
     for key, code in mapping.items():

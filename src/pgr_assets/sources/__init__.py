@@ -6,4 +6,4 @@ from .patchcdn import PatchCdnSource, PatchCdn
 from .obbstarter import ObbSource
 from .sourceset import SourceSet
 
-logger = logging.getLogger('pgr-assets.sources')
+logger = logging.getLogger("pgr-assets.sources")

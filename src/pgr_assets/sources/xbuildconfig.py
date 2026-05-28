@@ -51,7 +51,7 @@ def parse_xbuildconfig(raw: bytes) -> XBuildConfig:
     """
     buf = BytesIO(raw)
     buf.read(12)  # m_GameObject
-    buf.read(4)   # m_Enabled
+    buf.read(4)  # m_Enabled
     buf.read(12)  # m_Script
 
     m_name = _read_aligned_string(buf)

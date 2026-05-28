@@ -82,12 +82,16 @@ def build_source_set(args: BaseArgs) -> SourceSet:
         UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
 
     source_set = SourceSet()
+    if primary is None:
+        raise ValueError("No primary source specified (use --preset or --primary)")
     source_set.add_primary(primary, args.obb, args.prerelease)
 
     # Primary source (non OBB, but defended against above) has a JSON-only route to a version number.
     # Use this to determine key
     if args.version is None and args.decrypt_key is None:
-        version = source_set.version()[:3]
+        inferred = source_set.version()
+        assert inferred is not None
+        version = inferred[:3]
         args.decrypt_key = determine_decryption_key(version)
         UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
 

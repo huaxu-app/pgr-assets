@@ -12,7 +12,8 @@ def main():
     )
     parser.add_argument("input", help="Path to a raw .tab.bytes file")
     parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         help="Path to write CSV (defaults to stdout)",
         default=None,
     )

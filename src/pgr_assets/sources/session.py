@@ -48,7 +48,10 @@ def get_session() -> Session:
         allowed_methods=frozenset(["GET"]),
     )
     adapter = _TimeoutHTTPAdapter(
-        timeout=_DEFAULT_TIMEOUT, pool_connections=32, pool_maxsize=32, max_retries=retry
+        timeout=_DEFAULT_TIMEOUT,
+        pool_connections=32,
+        pool_maxsize=32,
+        max_retries=retry,
     )
     session.mount("http://", adapter)
     session.mount("https://", adapter)

@@ -1,16 +1,16 @@
-from typing import Union, Dict, List, Tuple
+from typing import Union, Dict, Iterable, Tuple
 
 
 class Source(object):
-    def has_blob(self, path: str) -> bool:
+    def has_blob(self, blob: str) -> bool:
         """Returns true if the source has the blob at the given path"""
         raise NotImplementedError()
 
-    def get_blob(self, path: str) -> bytes:
+    def get_blob(self, blob: str) -> bytes:
         """Returns the blob at the given path as binary data"""
         raise NotImplementedError()
 
-    def bundle_sha1(self, path: str) -> Union[str, None]:
+    def bundle_sha1(self, bundle: str) -> Union[str, None]:
         """Returns the sha1 of the given blob"""
         raise NotImplementedError()
 
@@ -26,6 +26,6 @@ class Source(object):
         """Returns a dict of blob -> path"""
         raise NotImplementedError()
 
-    def bundle_names(self) -> List[str]:
-        """Returns a list of all bundle names"""
+    def bundle_names(self) -> Iterable[str]:
+        """Returns all bundle names"""
         raise NotImplementedError()

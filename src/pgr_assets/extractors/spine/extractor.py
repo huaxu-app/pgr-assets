@@ -10,16 +10,18 @@ from .quirks import apply_quirk
 from .models import Spine, BoneFollower, SpineInfo
 from pgr_assets.converters.unity_to_json import jsonify
 
-logger = logging.getLogger('spine-extractor')
+logger = logging.getLogger("spine-extractor")
+
 
 def texture_from_material(mat: classes.Material):
-    for (name, tex_env) in mat.m_SavedProperties.m_TexEnvs:
-        if name == '_MainTex':
+    for name, tex_env in mat.m_SavedProperties.m_TexEnvs:
+        if name == "_MainTex":
             if tex_env.m_Texture.path_id == 0:
                 return None
             t = tex_env.m_Texture.read()
             return t.m_Name, t.image
     return None
+
 
 def flatten(l):
     for el in l:
@@ -30,6 +32,7 @@ def flatten(l):
         else:
             yield el
 
+
 def crawl(obj: classes.Object, spine: Spine, seen: Optional[set] = None):
     if seen is None:
         seen = set()
@@ -39,7 +42,7 @@ def crawl(obj: classes.Object, spine: Spine, seen: Optional[set] = None):
             return None
 
         if obj.path_id in seen:
-            return f'<seen {obj.path_id}>'
+            return f"<seen {obj.path_id}>"
         seen.add(obj.path_id)
 
         try:
@@ -49,37 +52,36 @@ def crawl(obj: classes.Object, spine: Spine, seen: Optional[set] = None):
         except FileNotFoundError:
             return None
 
-
     if isinstance(obj, classes.MonoBehaviour):
         script = obj.m_Script.read()
 
-        if script.m_ClassName in ('SkeletonGraphic', 'SkeletonAnimation'):
+        if script.m_ClassName in ("SkeletonGraphic", "SkeletonAnimation"):
             go = obj.m_GameObject.read()
             if go.m_IsActive:
                 spine.spines.append(handle_skeleton(go))
-        elif script.m_ClassName == 'BoneFollowerGraphic':
+        elif script.m_ClassName == "BoneFollowerGraphic":
             follower = handle_bone_follower(obj)
             spine.bone_followers.append(follower)
-        elif script.m_ClassName == 'UiObject':
+        elif script.m_ClassName == "UiObject":
             logger.debug("Got UiObject -> likely Movie Spine")
             spine.spine_order_list = [x.path_id for x in obj.ObjList]
             spine.found_size = (1000, 1080)
-        elif script.m_ClassName == 'XEffectScaler':
+        elif script.m_ClassName == "XEffectScaler":
             spine.found_size = (round(obj.DesignWidth), round(obj.DesignHeight))
 
     if isinstance(obj, classes.ComponentPair):
         return {
-            '__type': type(obj).__name__,
-            'component': crawl(obj.component, spine, seen)
+            "__type": type(obj).__name__,
+            "component": crawl(obj.component, spine, seen),
         }
     elif isinstance(obj, classes.Object):
         ret = {
-            '__type': type(obj).__name__,
+            "__type": type(obj).__name__,
         }
         if obj.object_reader is not None:
-            ret['__path_id'] = obj.object_reader.path_id
+            ret["__path_id"] = obj.object_reader.path_id
         for k, v in obj.__dict__.items():
-            if k == 'm_Shader':
+            if k == "m_Shader":
                 v = None
 
             if isinstance(v, (list, tuple)):
@@ -99,7 +101,7 @@ def crawl(obj: classes.Object, spine: Spine, seen: Optional[set] = None):
     elif isinstance(obj, classes.Quaternionf):
         return [obj.x, obj.y, obj.z, obj.w]
     elif isinstance(obj, classes.ColorRGBA):
-        return 'rgba(%d, %d, %d, %d)' % (obj.r, obj.g, obj.b, obj.a)
+        return "rgba(%d, %d, %d, %d)" % (obj.r, obj.g, obj.b, obj.a)
     return obj
 
 
@@ -118,22 +120,25 @@ def handle_skeleton(skeleton_object: classes.MonoBehaviour):
             if obj.m_Father is not None and obj.m_Father.path_id != 0:
                 father = obj.m_Father.read()
                 if isinstance(father, classes.RectTransform):
-                    spine.position = (spine.position[0] + father.m_LocalPosition.x, spine.position[1] + father.m_LocalPosition.y)
-        elif (sortOrder := getattr(obj, 'm_SortingOrder', None)) is not None:
+                    spine.position = (
+                        spine.position[0] + father.m_LocalPosition.x,
+                        spine.position[1] + father.m_LocalPosition.y,
+                    )
+        elif (sortOrder := getattr(obj, "m_SortingOrder", None)) is not None:
             spine.order = sortOrder
 
         if not isinstance(obj, classes.MonoBehaviour):
             continue
 
         script_type = obj.m_Script.read().m_ClassName
-        if script_type in ('SkeletonGraphic', 'SkeletonAnimation'):
+        if script_type in ("SkeletonGraphic", "SkeletonAnimation"):
             # Try get the texture from the material, this is one route, the other is through the atlas assets
-            if hasattr(obj, 'm_Material') and obj.m_Material.path_id != 0:
+            if hasattr(obj, "m_Material") and obj.m_Material.path_id != 0:
                 tex = texture_from_material(obj.m_Material.read())
                 if tex is not None:
                     spine.textures.append(tex)
 
-            if hasattr(obj, '_animationName'):
+            if hasattr(obj, "_animationName"):
                 spine.default_animation = obj._animationName
 
             skeleton_data_asset = obj.skeletonDataAsset.read()
@@ -148,9 +153,8 @@ def handle_skeleton(skeleton_object: classes.MonoBehaviour):
                 tex = texture_from_material(mat.read())
                 if tex is not None:
                     spine.textures.append(tex)
-        elif script_type == 'XEffectScaler':
+        elif script_type == "XEffectScaler":
             spine.size = (round(obj.DesignWidth), round(obj.DesignHeight))
-
 
     if spine.valid():
         logger.debug(f"Found spine: {spine}")
@@ -158,14 +162,19 @@ def handle_skeleton(skeleton_object: classes.MonoBehaviour):
     else:
         logger.warning(f"Invalid spine: {spine}")
 
+
 def handle_bone_follower(obj: classes.MonoBehaviour):
-    bone_follower = BoneFollower(obj.boneName, obj.skeletonGraphic.read().skeletonDataAsset.read().skeletonJSON.read().m_Name)
+    bone_follower = BoneFollower(
+        obj.boneName,
+        obj.skeletonGraphic.read().skeletonDataAsset.read().skeletonJSON.read().m_Name,
+    )
 
     for obj in walk_object_children(obj.m_GameObject):
         if isinstance(obj, classes.RectTransform):
             bone_follower.transforms.add(obj.object_reader.path_id)
 
     return bone_follower
+
 
 def walk_object_children(obj: classes.Object):
     """
@@ -199,10 +208,11 @@ def walk_object_children(obj: classes.Object):
 
         yield obj
 
-        if hasattr(obj, 'm_Children'):
+        if hasattr(obj, "m_Children"):
             queue.extend(obj.m_Children)
-        if hasattr(obj, 'm_Component'):
+        if hasattr(obj, "m_Component"):
             queue.extend(obj.m_Component)
+
 
 def check_global_scale(obj: classes.Object):
     if not isinstance(obj, classes.GameObject):
@@ -212,7 +222,10 @@ def check_global_scale(obj: classes.Object):
         c = c.component.read()
         if isinstance(c, classes.RectTransform) or isinstance(c, classes.Transform):
             scale, pid = c.m_LocalScale.x, {c.object_reader.path_id}
-            if len(c.m_Children) == 1 and c.m_Children[0].type == ClassIDType.RectTransform:
+            if (
+                len(c.m_Children) == 1
+                and c.m_Children[0].type == ClassIDType.RectTransform
+            ):
                 pid.add(c.m_Children[0].path_id)
                 extra_scale = c.m_Children[0].read().m_LocalScale.x
                 if extra_scale > 2:
@@ -221,7 +234,10 @@ def check_global_scale(obj: classes.Object):
             return scale, pid
     return None, None
 
-def extract_spine(name: str, obj: list[classes.Object], output_dir: str, write_json=False):
+
+def extract_spine(
+    name: str, obj: list[classes.Object], output_dir: str, write_json=False
+):
     spine = Spine(name)
 
     for obj in obj:
@@ -248,6 +264,11 @@ def extract_spine(name: str, obj: list[classes.Object], output_dir: str, write_j
         logger.debug(f"Processed {name} but no spines found")
 
     if write_json:
-        os.makedirs(f'{output_dir}/{name}', exist_ok=True)
-        with open(f'{output_dir}/{name}/jsonified.json', 'w') as f:
-            json.dump(jsonify(obj), f, indent=4, default=lambda x: f'<unserializable {type(x).__name__}>')
+        os.makedirs(f"{output_dir}/{name}", exist_ok=True)
+        with open(f"{output_dir}/{name}/jsonified.json", "w") as f:
+            json.dump(
+                jsonify(obj),
+                f,
+                indent=4,
+                default=lambda x: f"<unserializable {type(x).__name__}>",
+            )
