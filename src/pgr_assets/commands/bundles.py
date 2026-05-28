@@ -43,7 +43,7 @@ def execute_in_pool(
 ):
     finished_bundles = list()
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(process, bundle, state) for bundle in bundles]
         for future in tqdm(
             concurrent.futures.as_completed(futures), total=len(futures)
@@ -97,12 +97,17 @@ def bundles_cmd(args: BundlesCommand):
         logger.error("No bundles specified")
         sys.exit(1)
 
+    # Populate the index/resource maps once on the main thread so download threads
+    # only read the shared caches instead of racing to rebuild them.
+    ss.warm()
+
     non_video_bundles = [
         bundle for bundle in listed_bundles if not bundle.endswith(".usm")
     ]
     if len(non_video_bundles) > 0:
         logger.info(f"Processing {len(non_video_bundles)} non-video bundles")
-        execute_in_pool(non_video_bundles, state)
+        # Matches the session's 32-connection pool for IO concurrency.
+        execute_in_pool(non_video_bundles, state, max_workers=32)
 
     video_bundles = [bundle for bundle in listed_bundles if bundle.endswith(".usm")]
     if len(video_bundles) > 0:

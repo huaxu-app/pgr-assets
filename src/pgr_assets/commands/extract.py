@@ -185,14 +185,7 @@ def determine_sha1_cache_skip(file: str, bundles: Set[str], state: State) -> Set
     return wanted
 
 
-def write_sha1_cache(file: str, bundles: List[str], state: State):
-    entries = {}
-    if os.path.exists(file):
-        with open(file, "r") as f:
-            entries = json.load(f)
-
-    entries.update({bundle: state.sources.bundle_sha1(bundle) for bundle in bundles})
-
+def write_sha1_cache(file: str, entries: dict):
     with open(file, "w") as f:
         json.dump(entries, f)
 
@@ -205,8 +198,13 @@ def execute_in_pool(
     max_workers: Optional[int] = None,
     checkpoint_step: int = 100,
 ) -> int:
-    finished_bundles = list()
     fail_count = 0
+
+    cache_entries: dict = {}
+    if cache and os.path.exists(cache):
+        with open(cache, "r") as f:
+            cache_entries = json.load(f)
+    since_checkpoint = 0
 
     if use_processes:
         # Worker processes receive the (already warmed) state once via the
@@ -237,15 +235,17 @@ def execute_in_pool(
                 ok = False
 
             if ok:
-                finished_bundles.append(bundle)
-                # Checkpoints for cache
-                if cache and len(finished_bundles) % checkpoint_step == 0:
-                    write_sha1_cache(cache, finished_bundles, state)
+                if cache:
+                    cache_entries[bundle] = state.sources.bundle_sha1(bundle)
+                    since_checkpoint += 1
+                    if since_checkpoint >= checkpoint_step:
+                        write_sha1_cache(cache, cache_entries)
+                        since_checkpoint = 0
             else:
                 fail_count += 1
 
     if cache:
-        write_sha1_cache(cache, finished_bundles, state)
+        write_sha1_cache(cache, cache_entries)
 
     return fail_count
 
@@ -299,7 +299,8 @@ def extract_cmd(args: ExtractCommand):
     # receive once (spawn) the cached lookups instead of re-fetching them per worker.
     ss.warm()
 
-    workers = args.workers or os.cpu_count()
+    # Non video jobs spend a lot of time downloading so overcommit to fill the load
+    workers = args.workers or ((os.cpu_count() or 1) * 2)
 
     fail_count = 0
     ok_count = 0

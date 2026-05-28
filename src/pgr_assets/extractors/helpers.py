@@ -72,6 +72,9 @@ def rewrite_text_asset(
     game_version: tuple[int, int],
     allow_binary_table_convert=False,
 ) -> Tuple[str, bytes | bytearray]:
+    # None = not yet computed; reused below so a payload is decoded at most once
+    # while data stays unchanged. Reset to None whenever data is replaced.
+    data_is_utf8: bool | None = None
     if "/temp/bytes/" in path:
         if allow_binary_table_convert and path.endswith(".tab.bytes"):
             data = convert_to_csv(data, game_version)
@@ -82,9 +85,12 @@ def rewrite_text_asset(
                 path = os.path.join(
                     path_without_bytes, os.path.basename(path_without_bytes) + ".csv"
                 )
-    elif len(data) > 128 and not is_utf8(data):
-        # RSA signature can fuck itself
-        data = bytearray(data[128:])
+    elif len(data) > 128:
+        data_is_utf8 = is_utf8(data)
+        if not data_is_utf8:
+            # RSA signature can fuck itself
+            data = bytearray(data[128:])
+            data_is_utf8 = None  # data changed; recompute on demand below
 
     # Almost all files end with .bytes
     # If it doesn't, we'll keep it as it is,
@@ -96,7 +102,10 @@ def rewrite_text_asset(
     path = path_without_bytes
     ext = os.path.splitext(path)[1]
 
-    if ext == ".lua" and not is_utf8(data):
-        return path, decrypt(data)
+    if ext == ".lua":
+        if data_is_utf8 is None:
+            data_is_utf8 = is_utf8(data)
+        if not data_is_utf8:
+            return path, decrypt(data)
 
     return path, data
