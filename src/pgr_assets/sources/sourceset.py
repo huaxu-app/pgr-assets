@@ -83,6 +83,11 @@ class SourceSet:
             bundle for source in self.sources for bundle in source.bundle_names()
         )
 
+    def warm(self):
+        for source in self.sources:
+            source.bundle_names()
+            source.resources()
+
     def bundle_to_blob(self, bundle):
         for source in reversed(self.sources):
             blob = source.bundle_to_blob(bundle)

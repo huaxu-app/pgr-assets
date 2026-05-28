@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import sys
-from typing import Set, List
+from typing import Set, List, Optional
 
 import UnityPy
 from tqdm import tqdm
@@ -11,12 +11,17 @@ from tqdm import tqdm
 from pgr_assets import extractors
 from pgr_assets.audio import CueRegistry, ACB
 from pgr_assets.sources import SourceSet
+from pgr_assets.sources.sourceset import BlobNotFoundException
 from .helpers import build_source_set, BaseArgs
 from ..extractors.video_encoders import BaseVideoEncoder, WebMp4Encoder, HlsEncoder
 
 logger = logging.getLogger('pgr-assets')
 
 AUDIO_KEY = 62855594017927612
+
+# Worker-local handle to the shared State.
+_WORKER_STATE: Optional['State'] = None
+
 
 class ExtractCommand(BaseArgs):
     output: str  # Output directory to use.
@@ -32,6 +37,9 @@ class ExtractCommand(BaseArgs):
     all: bool = False  # Extract all I can find
     cache: str = ''  # Path to sha1 cache file
     write_settings: bool = False  # Write a small settings file to the output directory containing preset and version
+
+    workers: int = 0  # Number of parallel workers for non-video bundles (0 = CPU count)
+    fail_on_error: bool = False  # Exit with a non-zero status if any bundle fails
 
     bundles: List[str]  # Bundles to extract
 
@@ -114,8 +122,14 @@ def process_usm(bundle: str, state: State):
     usm.extract_video(os.path.join(state.output_dir, 'video', filename), state.video_encoders)
 
 
-def process(bundle: str, state: State):
+def _init_worker(state: State):
+    global _WORKER_STATE
+    _WORKER_STATE = state
     UnityPy.set_assetbundle_decrypt_key(state.decrypt_key)
+
+
+def process(bundle: str) -> bool:
+    state = _WORKER_STATE
     try:
         if bundle.endswith('.ab'):
             process_bundle(bundle, state)
@@ -128,11 +142,13 @@ def process(bundle: str, state: State):
         else:
             raise ValueError(f"Unsupported bundle type: {bundle}")
 
-        # Processed files get returned for processing into bundle cache
-        return bundle
+        return True
+    except BlobNotFoundException as e:
+        logger.error(f"Could not resolve {bundle}: {e}")
+        return False
     except Exception as e:
         logger.exception(f"Failed to process {bundle}", exc_info=e)
-        return None
+        return False
 
 
 def determine_sha1_cache_skip(file: str, bundles: Set[str], state: State) -> Set[str]:
@@ -166,25 +182,52 @@ def write_sha1_cache(file: str, bundles: List[str], state: State):
         json.dump(entries, f)
 
 
-def execute_in_pool(bundles: List[str], state: State, cache: str, max_workers: int = None, checkpoint_step: int = 100):
+def execute_in_pool(bundles: List[str], state: State, cache: str, use_processes: bool,
+                    max_workers: int = None, checkpoint_step: int = 100) -> int:
     finished_bundles = list()
+    fail_count = 0
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(process, bundle, state) for bundle in bundles]
-        for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
+    if use_processes:
+        # Worker processes receive the (already warmed) state once via the
+        # initializer, so only the bundle name is sent per task.
+        executor = concurrent.futures.ProcessPoolExecutor(
+            max_workers=max_workers, initializer=_init_worker, initargs=(state,))
+    else:
+        # Threads share this process; point the worker handle at our state.
+        global _WORKER_STATE
+        _WORKER_STATE = state
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+
+    with executor:
+        future_to_bundle = {executor.submit(process, bundle): bundle for bundle in bundles}
+        for future in tqdm(concurrent.futures.as_completed(future_to_bundle), total=len(future_to_bundle)):
+            bundle = future_to_bundle[future]
             try:
-                result = future.result()
-                if result:
-                    finished_bundles.append(result)
+                ok = future.result()
+            except Exception as e:
+                # The worker itself crashed (e.g. process killed); record and continue.
+                logger.exception(f"Worker crashed on {bundle}", exc_info=e)
+                ok = False
 
+            if ok:
+                finished_bundles.append(bundle)
                 # Checkpoints for cache
                 if cache and len(finished_bundles) % checkpoint_step == 0:
                     write_sha1_cache(cache, finished_bundles, state)
-            except Exception as e:
-                logger.error(f"Failed to process bundle: {e}")
+            else:
+                fail_count += 1
 
     if cache:
         write_sha1_cache(cache, finished_bundles, state)
+
+    return fail_count
+
+
+def report_results(ok_count: int, fail_count: int):
+    if fail_count:
+        logger.error(f"Extracted {ok_count} bundles, {fail_count} failed (see errors above)")
+    else:
+        logger.info(f"Extracted {ok_count} bundles, 0 failed")
 
 
 def extract_cmd(args: ExtractCommand):
@@ -210,10 +253,21 @@ def extract_cmd(args: ExtractCommand):
     if args.cache:
         listed_bundles = determine_sha1_cache_skip(args.cache, listed_bundles, state)
 
+    # Warm the index and resource maps once so worker processes inherit (fork) or
+    # receive once (spawn) the cached lookups instead of re-fetching them per worker.
+    ss.warm()
+
+    workers = args.workers or os.cpu_count()
+
+    fail_count = 0
+    ok_count = 0
+
     non_video_bundles = [bundle for bundle in listed_bundles if not bundle.endswith('.usm')]
     if len(non_video_bundles) > 0:
         logger.info(f"Processing {len(non_video_bundles)} non-video bundles")
-        execute_in_pool(non_video_bundles, state, args.cache)
+        batch_failed = execute_in_pool(non_video_bundles, state, args.cache, use_processes=True, max_workers=workers)
+        ok_count += len(non_video_bundles) - batch_failed
+        fail_count += batch_failed
 
     video_bundles = [bundle for bundle in listed_bundles if bundle.endswith('.usm')]
     if len(video_bundles) > 0:
@@ -221,8 +275,16 @@ def extract_cmd(args: ExtractCommand):
             encoder.setup()
 
         logger.info(f"Processing {len(video_bundles)} video bundles")
-        execute_in_pool(video_bundles, state, args.cache, max_workers=5, checkpoint_step=1)
+        # Video is ffmpeg-subprocess-bound; threads keep the encoder objects in-process.
+        batch_failed = execute_in_pool(video_bundles, state, args.cache, use_processes=False, max_workers=5, checkpoint_step=1)
+        ok_count += len(video_bundles) - batch_failed
+        fail_count += batch_failed
 
     if args.write_settings:
         with open(os.path.join(args.output, 'settings.json'), 'w') as f:
             json.dump({'server': args.preset, 'version': '%d.%d.%d' % ss.version()[:3]}, f)
+
+    report_results(ok_count, fail_count)
+
+    if fail_count and args.fail_on_error:
+        sys.exit(1)

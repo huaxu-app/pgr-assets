@@ -3,9 +3,9 @@ from typing import Union, Tuple
 
 import UnityPy
 import msgpack
-import requests
 
 from . import Source
+from .session import get_session
 from dataclasses import dataclass
 from enum import Enum
 
@@ -70,7 +70,7 @@ class PcStarterSource(Source):
     def get_blob(self, blob: str) -> bytes:
         url = self.resources()[blob]
         self._logger.debug(f"Downloading blob {blob} ({url})")
-        resp = requests.get(url)
+        resp = get_session().get(url)
         if resp.status_code != 200:
             raise Exception(f"Failed to download blob {blob} - {resp.status_code}")
         return resp.content
@@ -125,7 +125,7 @@ class PcStarterSource(Source):
 
     @staticmethod
     def _get_json(url: str) -> dict:
-        resp = requests.get(url)
+        resp = get_session().get(url)
         if resp.status_code != 200:
             raise Exception(f"Failed to download json {url} - {resp.status_code}")
         return resp.json()

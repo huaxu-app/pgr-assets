@@ -11,9 +11,9 @@ from urllib.parse import urlparse
 
 import UnityPy
 import msgpack
-import requests
 
 from . import Source
+from .session import get_session
 
 SIGN_ALPHABET = string.ascii_letters + string.digits
 
@@ -170,7 +170,7 @@ class PatchCdnSource(Source):
 
     def _request(self, url: str):
         if not self._cdn.sign:
-            return requests.get(url)
+            return get_session().get(url)
 
         # Do the new CN Beta signature
         expiration = int((datetime.now() + timedelta(minutes=30)).timestamp())
@@ -180,7 +180,7 @@ class PatchCdnSource(Source):
         signature += hashlib.md5(
             f"{path}-{signature}{self._sign_key}".encode()
         ).hexdigest()
-        return requests.get(url + "?sign=" + signature)
+        return get_session().get(url + "?sign=" + signature)
 
     def get_blob(self, blob: str) -> bytes:
         url = self.resources()[blob]
@@ -252,7 +252,7 @@ class PatchCdnSource(Source):
 
     @staticmethod
     def get_tab(url: str) -> Dict[str, str]:
-        resp = requests.get(url)
+        resp = get_session().get(url)
         if resp.status_code != 200:
             raise Exception(f"Failed to download raw {url} - {resp.status_code}")
 
