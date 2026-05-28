@@ -2,6 +2,7 @@ import logging
 from typing import Union, Tuple
 
 from . import PatchCdn, PatchCdnSource, ObbSource, PcStarterSource, PcStarterCdn
+from .xbuildconfig import extract_build_key
 
 logger = logging.getLogger("sourceset")
 
@@ -42,7 +43,12 @@ class SourceSet:
                 "Patch version required, and could not be inferred from earlier sources"
             )
 
-        impl = PatchCdnSource(PatchCdn[patch_type], version)
+        key = None
+        if tuple(int(x) for x in version.split(".")) >= (4, 3, 0):
+            key = extract_build_key(self._resources_assets_bytes())
+            logger.debug("Extracted patch key from resources.assets")
+
+        impl = PatchCdnSource(PatchCdn[patch_type], version, key=key)
 
         impl_version = impl.version()
         logger.info(f"Patch source {patch_type} version {impl_version}")
@@ -63,6 +69,14 @@ class SourceSet:
         self.sources = [
             source for source in self.sources if isinstance(source, PatchCdnSource)
         ]
+
+    def _resources_assets_bytes(self) -> bytes:
+        for source in self.sources:
+            if source.has_blob("resources.assets"):
+                return source.get_blob("resources.assets")
+        raise BlobNotFoundException(
+            "resources.assets not found in any source (required for >=4.3.0 patch key)"
+        )
 
     def list_all_bundles(self):
         return set(

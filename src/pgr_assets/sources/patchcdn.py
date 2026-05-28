@@ -3,10 +3,10 @@ import logging
 import os
 import random
 import string
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Union, Dict, Tuple, Iterable
+from typing import Union, Dict, Tuple, Iterable, Optional
 from urllib.parse import urlparse
 
 import UnityPy
@@ -27,7 +27,7 @@ class PatchCdnData:
     cdn: str
     app_id: str
     platform: str
-    key: str
+    key: Optional[str] = None
     sign: bool = False
 
     def config_url(self, version: str):
@@ -36,7 +36,7 @@ class PatchCdnData:
             "client/config",
         ]
 
-        if tuple(int(x) for x in version.split(".")) >= (4, 3, 0):
+        if self.key and tuple(int(x) for x in version.split(".")) >= (4, 3, 0):
             path += [self.key]
 
         path += [
@@ -54,7 +54,7 @@ class PatchCdnData:
             "client/patch",
         ]
 
-        if tuple(int(x) for x in application_version.split(".")) >= (4, 3, 0):
+        if self.key and tuple(int(x) for x in application_version.split(".")) >= (4, 3, 0):
             path += [self.key]
 
         path += [
@@ -75,51 +75,43 @@ class PatchCdn(Enum):
         "http://prod-encdn-volcdn.kurogame.net/prod",
         "com.kurogame.punishing.grayraven.en",
         "android",
-        "R0bYNv1p0RHLXEEe",
     )
     EN_PC = PatchCdnData(
         "http://prod-encdn-volcdn.kurogame.net/prod",
         "com.kurogame.punishing.grayraven.en",
         "standalone",
-        "R0bYNv1p0RHLXEEe",
     )
     KR = PatchCdnData(
         "http://prod-krcdn-volcdn.kurogame.net/prod",
         "com.kurogame.punishing.grayraven.kr",
         "android",
-        "sPWBqLRwE3jwdwGm",
     )
     KR_PC = PatchCdnData(
         "http://prod-krcdn-volcdn.kurogame.net/prod",
         "com.kurogame.punishing.grayraven.kr",
         "standalone",
-        "sPWBqLRwE3jwdwGm",
     )
 
     JP = PatchCdnData(
         "http://prod-jpcdn-volcdn.kurogame.net/prod",
         "com.kurogame.punishing.grayraven.jp",
         "android",
-        "tQ00SXg6pY4lVc9k",
     )
     JP_PC = PatchCdnData(
         "http://prod-jpcdn-volcdn.kurogame.net/prod",
         "com.kurogame.punishing.grayraven.jp",
         "standalone",
-        "tQ00SXg6pY4lVc9k",
     )
 
     TW = PatchCdnData(
         "http://prod-twcdn-volcdn.kurogame.net/prod",
         "com.kurogame.punishing.grayraven.tw",
         "android",
-        "WhrNLC4EUQJGJOmF",
     )
     TW_PC = PatchCdnData(
         "http://prod-twcdn-volcdn.kurogame.net/prod",
         "com.kurogame.punishing.grayraven.tw",
         "standalone",
-        "WhrNLC4EUQJGJOmF",
     )
 
     # http://prod.zspnsalicdn.yingxiong.com/prod/client/config/com.kurogame.haru.kuro/2.9.0/standalone/config.tab
@@ -127,27 +119,23 @@ class PatchCdn(Enum):
         "http://prod-zspns-volccdn.kurogame.com/prod",
         "com.kurogame.haru.kuro",
         "android",
-        "Tk06VWjajcajO0Tz",
     )
     CN_PC = PatchCdnData(
         "http://prod-zspns-volccdn.kurogame.com/prod",
         "com.kurogame.haru.kuro",
         "standalone",
-        "Tk06VWjajcajO0Tz",
     )
 
     CN_BETA = PatchCdnData(
         "http://prod-zspns-volccdn.kurogame.com/prod",
         "com.kurogame.haru.kuro",
         "android",
-        "",
         sign=True,
     )
     CN_PC_BETA = PatchCdnData(
         "http://prod-zspns-volccdn.kurogame.com/prod",
         "com.kurogame.haru.kuro",
         "standalone",
-        "",
         sign=True,
     )
 
@@ -160,9 +148,9 @@ class PatchCdnSource(Source):
     _resources = None
     _sign_key: str | None = None
 
-    def __init__(self, cdn: PatchCdn, version: str):
+    def __init__(self, cdn: PatchCdn, version: str, key: Optional[str] = None):
         self._cdn_name = cdn.name
-        self._cdn = cdn.value
+        self._cdn = replace(cdn.value, key=key) if key else cdn.value
 
         if self._cdn.sign:
             self._sign_key = os.getenv("PATCH_SIGN_KEY")

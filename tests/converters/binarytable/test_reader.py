@@ -1,6 +1,6 @@
 import io
 import unittest
-from .reader import Reader
+from pgr_assets.converters.binarytable.reader import Reader
 
 
 class ReaderTest(unittest.TestCase):

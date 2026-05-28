@@ -1,17 +1,17 @@
 import io
-import os
 import unittest
 from decimal import Decimal
+from pathlib import Path
 
-from .table import BinaryTable
+from pgr_assets.converters.binarytable.table import BinaryTable
 
-script_dir = os.path.dirname(__file__)
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 class TableTest(unittest.TestCase):
     def test_headers(self):
-        with open(os.path.join(script_dir, 'assets/areastage.tab.bytes'), 'rb') as f:
-            table = BinaryTable(f)
+        with open(FIXTURES / 'areastage.tab.bytes', 'rb') as f:
+            table = BinaryTable(f, (3, 0))
             self.assertEqual(105, table.info_length)
             self.assertEqual(10, len(table.columns))
 
@@ -30,8 +30,8 @@ class TableTest(unittest.TestCase):
             self.assertEqual(7202, table.content_trunk_length)
 
     def test_rows(self):
-        with open(os.path.join(script_dir, 'assets/areastage.tab.bytes'), 'rb') as f:
-            table = BinaryTable(f)
+        with open(FIXTURES / 'areastage.tab.bytes', 'rb') as f:
+            table = BinaryTable(f, (3, 0))
             rows = table.rows
 
         self.assertEqual(29, len(rows))
@@ -43,8 +43,8 @@ class TableTest(unittest.TestCase):
         self.assertEqual(3, table.columns[8].list_length)
 
     def test_csv_headers(self):
-        with open(os.path.join(script_dir, 'assets/areastage.tab.bytes'), 'rb') as f:
-            table = BinaryTable(f)
+        with open(FIXTURES / 'areastage.tab.bytes', 'rb') as f:
+            table = BinaryTable(f, (3, 0))
 
         self.assertEqual(frozenset([
             'Id', 'Name', 'BuffId', 'BuffDesc', 'StageId[0]', 'StageId[1]', 'StageId[2]', 'ActiveAutoFightStageStr[0]',
@@ -54,21 +54,21 @@ class TableTest(unittest.TestCase):
 
     def test_to_csv(self):
         out = io.StringIO(newline='')
-        with open(os.path.join(script_dir, 'assets/areastage.tab.bytes'), 'rb') as f:
-            BinaryTable(f).to_csv(out)
+        with open(FIXTURES / 'areastage.tab.bytes', 'rb') as f:
+            BinaryTable(f, (3, 0)).to_csv(out)
 
         out.seek(0)
         string = out.read().splitlines()
 
-        with open(os.path.join(script_dir, 'assets/areastage.csv'), 'r') as f:
+        with open(FIXTURES / 'areastage.csv', 'r') as f:
             expected = f.read().splitlines()
         self.assertEqual(expected, string)
 
 
 
     def test_old_style_fixnum(self):
-        with open(os.path.join(script_dir, 'assets/npcsettletime.old.tab.bytes'), 'rb') as f:
-            table = BinaryTable(f)
+        with open(FIXTURES / 'npcsettletime.old.tab.bytes', 'rb') as f:
+            table = BinaryTable(f, (3, 0))
             rows = table.rows
 
         self.assertEqual(81, len(rows))
@@ -86,8 +86,8 @@ class TableTest(unittest.TestCase):
 
 
     def test_new_style_fixnum(self):
-        with open(os.path.join(script_dir, 'assets/npcsettletime.tab.bytes'), 'rb') as f:
-            table = BinaryTable(f, new_fixnum=True)
+        with open(FIXTURES / 'npcsettletime.tab.bytes', 'rb') as f:
+            table = BinaryTable(f, (3, 3))
             rows = table.rows
 
         self.assertEqual(81, len(rows))
@@ -105,8 +105,8 @@ class TableTest(unittest.TestCase):
 
 
     def test_old_style_fixnum_npcsearcher(self):
-        with open(os.path.join(script_dir, 'assets/npcsearcher.old.bytes'), 'rb') as f:
-            table = BinaryTable(f)
+        with open(FIXTURES / 'npcsearcher.old.bytes', 'rb') as f:
+            table = BinaryTable(f, (3, 0))
             rows = table.rows
 
         # has both a negative number and a small number
@@ -115,8 +115,8 @@ class TableTest(unittest.TestCase):
         self.assertEqual(Decimal('1'), row[5])
 
     def test_new_style_fixnum_npcsearcher(self):
-        with open(os.path.join(script_dir, 'assets/npcsearcher.bytes'), 'rb') as f:
-            table = BinaryTable(f, new_fixnum=True)
+        with open(FIXTURES / 'npcsearcher.bytes', 'rb') as f:
+            table = BinaryTable(f, (3, 3))
             rows = table.rows
 
         # has both a negative number and a small number

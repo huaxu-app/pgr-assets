@@ -11,4 +11,4 @@ run = "ruff check"
 
 [tasks.test]
 description = "Run tests"
-run = "python -m unittest"
+run = "python -m unittest discover -s tests"

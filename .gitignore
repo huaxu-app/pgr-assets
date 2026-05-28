@@ -3,3 +3,5 @@ dist/
 pgrtemp/
 notebooks/assets
 notebooks/output
+__pycache__
+.idea

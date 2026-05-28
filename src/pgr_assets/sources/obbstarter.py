@@ -7,6 +7,17 @@ import msgpack
 from . import Source
 
 
+def _obb_resource_map(filenames) -> Dict[str, str]:
+    resources = {
+        name.split("/")[-1]: name for name in filenames if "matrix" in name
+    }
+    for name in filenames:
+        if name.split("/")[-1] == "resources.assets":
+            resources["resources.assets"] = name
+            break
+    return resources
+
+
 class ObbSource(Source):
     _resources = None
     _obb_path: str
@@ -17,7 +28,7 @@ class ObbSource(Source):
         self._obb_path = obb
         obb = ZipFile(obb, 'r')
         self.load_index(obb)
-        self._resources = {f.filename.split('/')[-1]: f.filename for f in obb.filelist if 'matrix' in f.filename}
+        self._resources = _obb_resource_map([f.filename for f in obb.filelist])
         self._filename = obb.filename
 
     def has_blob(self, blob: str) -> bool:
