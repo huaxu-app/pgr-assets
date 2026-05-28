@@ -105,7 +105,6 @@ def process_audio(bundle: str, state: State):
         if cue_sheet.awb:
             awb_data = state.sources.find_bundle(cue_sheet.awb)
     else:
-        logger.warning(f"Failed to find cue sheet for {bundle}, making assumptions")
         acb_file = bundle
         base_name = bundle.split("/", 2)[2].split(".")[0].lower()
         acb_data = state.sources.find_bundle(bundle)
