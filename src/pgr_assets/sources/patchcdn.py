@@ -154,8 +154,8 @@ class PatchCdnSource(Source):
 
         if self._cdn.sign:
             self._sign_key = os.getenv("PATCH_SIGN_KEY")
-        if not self._sign_key:
-            self._logger.error("Beta selected but no PATCH_SIGN_KEY set")
+            if not self._sign_key:
+                self._logger.error("Beta selected but no PATCH_SIGN_KEY set")
 
         self._logger.debug("Getting config from patch cdn")
         config = self.get_tab(self._cdn.config_url(version))
