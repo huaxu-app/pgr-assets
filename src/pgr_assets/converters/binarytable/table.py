@@ -52,6 +52,13 @@ class BinaryTable:
 
     rows: List
 
+    # Per-column bookkeeping categories, precomputed once from the column type so
+    # the per-cell row loop avoids repeated method-call dispatch.
+    _KIND_SCALAR = 0
+    _KIND_LIST = 1
+    _KIND_INT_DICT = 2
+    _KIND_STR_DICT = 3
+
     def __init__(self, data: BinaryIO, game_version: tuple[int, int]):
         self.reader = Reader(data, new_fixnum=game_version >= (3, 3))
 
@@ -66,7 +73,24 @@ class BinaryTable:
         self._read_header()
         if self.enable_string_pool:
             self._read_string_pool_info()
+        self._precompute_column_info()
         self._read_content()
+
+    def _precompute_column_info(self):
+        self._pool_flags = [
+            self._is_string_pool_column(j + 1) for j in range(len(self.columns))
+        ]
+        self._column_kinds = [self._column_kind(c) for c in self.columns]
+
+    @classmethod
+    def _column_kind(cls, column: Column) -> int:
+        if column.is_int_keyed_dict():
+            return cls._KIND_INT_DICT
+        if column.is_dict_type():
+            return cls._KIND_STR_DICT
+        if 4 <= column.type <= 8:
+            return cls._KIND_LIST
+        return cls._KIND_SCALAR
 
     def _read_header(self):
         self.info_length = self.reader.read_i32()
@@ -197,24 +221,34 @@ class BinaryTable:
         self.rows = [self._row(i) for i in range(self.row_count)]
 
     def _row(self, row_index: int):
+        reader = self.reader
+        read_by_column_type = reader.read_by_column_type
+        pool_flags = self._pool_flags
+        column_kinds = self._column_kinds
         row = []
+        append = row.append
         for j, column in enumerate(self.columns):
-            self.reader.use_string_pool = self._is_string_pool_column(j + 1)
+            reader.use_string_pool = pool_flags[j]
             try:
-                value = self.reader.read_by_column_type(column.type)
+                value = read_by_column_type(column.type)
             except Exception as e:
                 raise Exception(
                     f"Error reading column {column.name} at row {row_index}", e
                 )
 
-            row.append(value)
+            append(value)
 
-            if type(value) is list and len(value) > column.list_length:
-                column.list_length = len(value)
-            elif column.is_int_keyed_dict() and len(cast(dict, value)) > 0:
-                column.list_length = max(column.list_length, *cast(dict, value).keys())
-            elif column.is_dict_type():
-                for key in cast(dict, value).keys():
+            kind = column_kinds[j]
+            if kind == self._KIND_LIST:
+                n = len(cast(list, value))
+                if n > column.list_length:
+                    column.list_length = n
+            elif kind == self._KIND_INT_DICT:
+                dict_value = cast(dict, value)
+                if dict_value:
+                    column.list_length = max(column.list_length, *dict_value.keys())
+            elif kind == self._KIND_STR_DICT:
+                for key in cast(dict, value):
                     column.add_dict_key(key)
 
         return row

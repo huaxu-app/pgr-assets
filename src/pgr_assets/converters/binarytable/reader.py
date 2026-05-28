@@ -8,14 +8,19 @@ FLOAT_TO_INT = 10_000
 
 
 class Reader:
-    file: BinaryIO
+    buffer: bytes
+    pos: int
     new_fixnum: bool
     use_string_pool: bool
     string_pool_callback: Optional[Callable[[int], str]]
 
     # New style fixnum is from 3.3.0 (Jetavie) onwards
     def __init__(self, file: BinaryIO, new_fixnum=False):
-        self.file = file
+        # The whole stream is slurped once so the hot read paths work against an
+        # in-memory bytes buffer with an integer cursor, instead of issuing a
+        # per-byte file.read()/struct.unpack for every value.
+        self.buffer = file.read()
+        self.pos = 0
         self.new_fixnum = new_fixnum
         self.use_string_pool = False
         self.string_pool_callback = None
@@ -24,7 +29,9 @@ class Reader:
         self.string_pool_callback = callback
 
     def read_bytes(self, size):
-        return self.file.read(size)
+        start = self.pos
+        self.pos = end = start + size
+        return self.buffer[start:end]
 
     def read_by_column_type(self, type: int):
         match type:
@@ -62,20 +69,28 @@ class Reader:
                 raise Exception(f"Unknown column type: {type}")
 
     def read_u8(self):
-        return struct.unpack("<B", self.read_bytes(1))[0]
+        pos = self.pos
+        self.pos = pos + 1
+        return self.buffer[pos]
 
     def read_i32(self):
+        # struct.unpack still raises struct.error on a short read at EOF, which
+        # _read_string_pool_info relies on to detect a missing pool trailer.
         return struct.unpack("<i", self.read_bytes(4))[0]
 
     def read_leb128(self):
+        buffer = self.buffer
+        pos = self.pos
         result = 0
         shift = 0
         while True:
-            byte = self.read_u8()
+            byte = buffer[pos]
+            pos += 1
             result |= (byte & 0x7F) << shift
             if byte & 0x80 == 0:
                 break
             shift += 7
+        self.pos = pos
         return result
 
     def read_bool(self):
@@ -89,13 +104,11 @@ class Reader:
                 return self.string_pool_callback(index)
             return ""
 
-        chars = bytearray([])
-        while True:
-            byte = self.read_u8()
-            if byte == 0:  # Null byte indicates the end of the string
-                break
-            chars.append(byte)
-        return chars.decode("utf-8")
+        buffer = self.buffer
+        start = self.pos
+        end = buffer.index(0, start)  # Null byte indicates the end of the string
+        self.pos = end + 1
+        return buffer[start:end].decode("utf-8")
 
     def read_int(self):
         x = self.read_leb128()
@@ -180,15 +193,20 @@ class Reader:
         return [self.read_fix() for _ in range(count)]
 
     def peek_byte(self):
-        b = self.read_bytes(1)
-        self.move(-1)
-        return b[0]
+        return self.buffer[self.pos]
 
     def seek(self, position, from_where=os.SEEK_SET):
-        self.file.seek(position, from_where)
+        if from_where == os.SEEK_SET:
+            self.pos = position
+        elif from_where == os.SEEK_CUR:
+            self.pos += position
+        elif from_where == os.SEEK_END:
+            self.pos = len(self.buffer) + position
+        else:
+            raise ValueError(f"Invalid seek origin: {from_where}")
 
     def move(self, offset):
-        self.seek(offset, from_where=os.SEEK_CUR)
+        self.pos += offset
 
     def get_position(self):
-        return self.file.tell()
+        return self.pos
