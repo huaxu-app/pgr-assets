@@ -42,10 +42,10 @@ class ACB:
 
     def __init__(self, acb, awb: bytes | str = b"") -> None:
         self.payload = UTF(acb).get_payload()
+        self.acb_parse(self.payload)
         if awb:
             self.awb = AWB(awb)
         else:
-            self.acb_parse(self.payload)
             self.awb = AWB(self.payload[0]["AwbFile"][1])
 
     def acb_parse(self, payload: list) -> None:
