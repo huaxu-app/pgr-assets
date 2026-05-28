@@ -65,7 +65,7 @@ def convert_to_csv(data: memoryview, game_version:tuple[int, int]) -> bytearray:
 
 def rewrite_text_asset(path: str, data: memoryview, game_version: tuple[int, int], allow_binary_table_convert=False) -> Tuple[str, bytearray]:
     if '/temp/bytes/' in path:
-        if allow_binary_table_convert:
+        if allow_binary_table_convert and path.endswith('.tab.bytes'):
             data = convert_to_csv(data, game_version)
             path = path.replace('.tab.bytes', '.csv')
             if path.endswith('.bytes'):
