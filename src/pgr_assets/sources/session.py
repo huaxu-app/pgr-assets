@@ -18,10 +18,12 @@ class _TimeoutHTTPAdapter(HTTPAdapter):
         self._timeout = timeout
         super().__init__(*args, **kwargs)
 
-    def send(self, request, **kwargs):
-        if kwargs.get("timeout") is None:
-            kwargs["timeout"] = self._timeout
-        return super().send(request, **kwargs)
+    def send(
+            self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
+    ):
+        if timeout is None:
+            timeout = self._timeout
+        return super().send(request, stream, timeout, verify, cert, proxies)
 
 
 def get_session() -> Session:

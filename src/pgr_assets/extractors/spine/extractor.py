@@ -23,8 +23,8 @@ def texture_from_material(mat: classes.Material):
     return None
 
 
-def flatten(l):
-    for el in l:
+def flatten(items):
+    for el in items:
         if isinstance(el, (list, tuple)):
             yield from flatten(el)
         elif isinstance(el, dict):

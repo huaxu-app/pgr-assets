@@ -2,7 +2,7 @@
 import logging
 import os
 import struct
-from typing import BinaryIO, cast
+from typing import cast, Any, List
 
 from PyCriCodecs import UTF, AWB, UTFTypeValues, UTFType, HCA
 from ffmpeg import FFmpeg
@@ -33,25 +33,25 @@ def get_extension(encode_type: int) -> str:
         return ""
 
 
-class ACB(UTF):
+class ACB:
     """An ACB is basically a giant @UTF table. Use this class to extract any ACB."""
 
     __slots__ = ["payload", "awb"]
     payload: list
-    awb: AWB | None
+    awb: AWB
 
-    def __init__(self, acb, stream, awb: bytes | str = b"") -> None:
+    def __init__(self, acb, awb: bytes | str = b"") -> None:
         self.payload = UTF(acb).get_payload()
         if awb:
             self.awb = AWB(awb)
         else:
-            self.awb = None
-        self.acbparse(self.payload)
+            self.acb_parse(self.payload)
+            self.awb = AWB(self.payload[0]["AwbFile"][1])
 
-    def acbparse(self, payload: list) -> None:
+    def acb_parse(self, payload: list) -> None:
         """Recursively parse the payload."""
-        for dict in range(len(payload)):
-            for k, v in payload[dict].items():
+        for items in range(len(payload)):
+            for k, v in payload[items].items():
                 if v[0] == UTFTypeValues.bytes:
                     if v[
                         1
@@ -59,15 +59,8 @@ class ACB(UTF):
                         UTFType.UTF.value
                     ):  # or v[1].startswith(UTFType.EUTF.value): # ACB's never gets encrypted?
                         par = UTF(v[1]).get_payload()
-                        payload[dict][k] = par
-                        self.acbparse(par)
-        self.load_awb()
-
-    def load_awb(self) -> None:
-        if self.awb is not None:
-            return
-
-        self.awb = AWB(self.payload[0]["AwbFile"][1])
+                        payload[items][k] = par
+                        self.acb_parse(par)
 
     def get_waveform_for_cue_idx(self, idx: int) -> int | None:
         # Grab the synth reference
@@ -118,7 +111,7 @@ class ACB(UTF):
             os.makedirs(dirname, exist_ok=True)
 
         # Have to do this because the index one is broken
-        waveforms = list(self.awb.getfiles())
+        waveforms: List[Any] = list(self.awb.getfiles())
 
         tables = self.payload[0]
 
@@ -132,7 +125,7 @@ class ACB(UTF):
                     continue
 
                 data = waveforms[waveform_id]
-                audio = HCA(data, key=key, subkey=self.awb.subkey).decode()
+                audio = HCA(data, key=key, subkey=cast(Any, self.awb.subkey)).decode()
 
                 if encode:
                     ffmpeg = (
@@ -162,13 +155,13 @@ class ACB(UTF):
             os.makedirs(dirname, exist_ok=True)
         filename = 0
         assert self.awb is not None
-        for i in self.awb.getfiles():
+        for i in cast(List[Any], self.awb.getfiles()):
             print(filename, len(i))
             extension: str = get_extension(
                 self.payload[0]["WaveformTable"][filename]["EncodeType"][1]
             )
             if decode and extension == ".hca":
-                hca = HCA(cast(BinaryIO, i), key=key, subkey=self.awb.subkey).decode()
+                hca = HCA(i, key=key, subkey=cast(Any, self.awb.subkey)).decode()
                 open(os.path.join(dirname, str(filename) + ".wav"), "wb").write(hca)
                 filename += 1
             else:

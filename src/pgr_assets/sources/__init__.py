@@ -7,3 +7,13 @@ from .obbstarter import ObbSource
 from .sourceset import SourceSet
 
 logger = logging.getLogger("pgr-assets.sources")
+
+__all__ = [
+    "Source",
+    "PcStarterSource",
+    "PcStarterCdn",
+    "PatchCdnSource",
+    "PatchCdn",
+    "ObbSource",
+    "SourceSet",
+]

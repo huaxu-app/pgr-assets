@@ -16,4 +16,4 @@ def read_textasset_bytes(env: UnityPy.Environment, path: str) -> bytes:
 
 
 def loads_index(data: bytes) -> dict:
-    return msgpack.loads(data, strict_map_key=False)
+    return cast(dict, msgpack.loads(data, strict_map_key=False))

@@ -68,5 +68,5 @@ def check_encoder_available(encoder: str):
         )
         ffmpeg.execute()
         return True
-    except FFmpegError as e:
+    except FFmpegError:
         return False

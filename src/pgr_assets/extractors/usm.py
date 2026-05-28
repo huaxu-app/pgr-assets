@@ -1,7 +1,7 @@
 import logging
 import os
 import tempfile
-from typing import Union, cast, BinaryIO
+from typing import Union, cast, Any
 import PyCriCodecs
 
 from pgr_assets.extractors.video_encoders import BaseVideoEncoder, Track
@@ -13,7 +13,7 @@ class PGRUSM(PyCriCodecs.USM):
     audio_language: dict[str, str] = {}
 
     def __init__(self, filename, key: Union[str, int, bool] = False):
-        super().__init__(filename, key)
+        super().__init__(filename, cast(str, key)) # bad cast, but PyCriCodecs is bad at typing
         self.key = key
 
     def reader(self, chuncksize, offset, padding, header) -> bytearray:
@@ -41,7 +41,10 @@ class PGRUSM(PyCriCodecs.USM):
         i = 1
         for k, v in self.output.items():
             if k.startswith("@SFA_"):
-                self.output[k] = PyCriCodecs.HCA(v, key=self.key).decode()
+                self.output[k] = PyCriCodecs.HCA(
+                    cast(Any, v), # cast: it gets passed to bytearray, which accepts bytes too
+                    key=cast(Any, self.key) # cast: this is fine, but again... PyCriCodecs
+                ).decode()
                 self.audio_language[k] = ffmpeg_language_code(filenames[i])
             i += 1
 
@@ -77,7 +80,7 @@ class PGRUSM(PyCriCodecs.USM):
                 encoder.encode(base_outfile, videos, audios)
 
 
-def ffmpeg_language_code(text: str) -> str | None:
+def ffmpeg_language_code(text: str) -> str:
     """
     Detect language tag inside a string and return the
     correct RFC 5646 language code.
@@ -96,4 +99,5 @@ def ffmpeg_language_code(text: str) -> str | None:
         if key in text_lower:
             return code
 
-    return None
+    # close enough usually?
+    return text_lower

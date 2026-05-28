@@ -1,4 +1,5 @@
 import csv
+import struct
 from dataclasses import dataclass
 from typing import BinaryIO, List, IO, Dict, cast
 
@@ -126,7 +127,7 @@ class BinaryTable:
             if pool_head_length <= 0:
                 self.pool_column_size = 0
                 return
-        except:
+        except struct.error:
             self.pool_column_size = 0
             return
 

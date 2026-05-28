@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Tuple, List, cast
+from typing import Tuple, List
 from dataclasses import dataclass, field
 from PIL import Image
 from collections import Counter
@@ -111,7 +111,7 @@ class Spine:
             index = {x: i for i, x in enumerate(self.spine_order_list)}
             self.spines = sorted(
                 self.spines,
-                key=lambda x: min(index.get(p, float("inf")) for p in x.ids),
+                key=lambda x: min(index.get(str(p), float('inf')) for p in x.ids),
                 reverse=True,
             )
 
