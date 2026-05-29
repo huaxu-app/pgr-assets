@@ -1,5 +1,6 @@
 import unittest
 from types import SimpleNamespace
+from typing import Any, cast
 
 import msgpack
 
@@ -18,7 +19,7 @@ class LoadsIndexTest(unittest.TestCase):
     def test_round_trips_with_int_keys(self):
         # int keys require strict_map_key=False; plain msgpack.loads would reject them.
         payload = {1: "a", 2: {3: "b"}}
-        self.assertEqual(payload, loads_index(msgpack.dumps(payload)))
+        self.assertEqual(payload, loads_index(cast(bytes, msgpack.dumps(payload))))
 
 
 class ReadTextassetBytesTest(unittest.TestCase):
@@ -28,7 +29,7 @@ class ReadTextassetBytesTest(unittest.TestCase):
         )
         self.assertEqual(
             "héllo".encode("utf-8", "surrogateescape"),
-            read_textasset_bytes(env, "path"),
+            read_textasset_bytes(cast(Any, env), "path"),
         )
 
 

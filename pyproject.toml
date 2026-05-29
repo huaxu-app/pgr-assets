@@ -30,6 +30,6 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.pyright]
-include = ["src"]
+include = ["src", "tests"]
 venvPath = "."
 venv = ".venv"

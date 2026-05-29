@@ -1,23 +1,28 @@
 import unittest
+from typing import cast
 
 from pgr_assets.commands import bundles as bundles_mod
 from pgr_assets.commands import extract as extract_mod
-from pgr_assets.commands.helpers import selected_bundles
+from pgr_assets.commands.helpers import BundleCommandArgs, selected_bundles
 from pgr_assets.commands.root import Args
+from pgr_assets.sources.sourceset import SourceSet
 
 
-class FakeSourceSet:
+class FakeSourceSet(SourceSet):
     def __init__(self, bundles):
+        super().__init__()
         self._bundles = set(bundles)
 
     def list_all_bundles(self):
         return self._bundles
 
 
-def _parse(argv):
+def _parse(argv) -> BundleCommandArgs:
     # Mirror the real entry point: parse through the top-level Args parser so we
     # exercise the same flattened namespace that __init__.main hands to func().
-    return Args().parse_args(argv)
+    # The runtime object is a top-level Args carrying the subcommand's flattened
+    # attributes; cast reflects what selected_bundles actually receives.
+    return cast(BundleCommandArgs, Args().parse_args(argv))
 
 
 class DispatchContractTest(unittest.TestCase):
@@ -30,13 +35,14 @@ class DispatchContractTest(unittest.TestCase):
             ["bundles", "--preset", "global", "--output", "/tmp/o", "foo.ab"]
         )
         # The dispatch target is bundles_cmd, and selection must run on `args`.
-        self.assertIs(args.func, bundles_mod.bundles_cmd)
+        # `func` is injected by Tap's set_defaults, so it's read dynamically.
+        self.assertIs(getattr(args, "func"), bundles_mod.bundles_cmd)
         ss = FakeSourceSet({"foo.ab", "bar.acb"})
         self.assertEqual({"foo.ab"}, selected_bundles(args, ss))
 
     def test_extract_dispatch_resolves_selection(self):
         args = _parse(["extract", "--preset", "global", "--output", "/tmp/o"])
-        self.assertIs(args.func, extract_mod.extract_cmd)
+        self.assertIs(getattr(args, "func"), extract_mod.extract_cmd)
         ss = FakeSourceSet({"a.acb", "b.ab", "c.usm"})
         # --all-audio selects only the .acb bundle.
         args.all_audio = True

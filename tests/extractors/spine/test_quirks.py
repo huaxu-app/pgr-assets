@@ -92,6 +92,7 @@ class GlueTest(unittest.TestCase):
 
     def test_find_glue_returns_quirk(self):
         glue = find_glue("selena/selenaactivity/selenaactivitybg")
+        assert glue is not None
         self.assertIsInstance(glue, GlueQuirk)
         self.assertEqual("selena/selenaactivity", glue.name)
 
