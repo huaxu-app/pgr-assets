@@ -102,8 +102,8 @@ def process_audio(bundle: str, state: State):
         acb_data = state.sources.find_bundle(bundle)
         try:
             awb_data = state.sources.find_bundle(bundle.replace(".acb", ".awb"))
-        except Exception:
-            pass
+        except BlobNotFoundException:
+            pass  # no separate AWB; the ACB may carry its waveforms inline
 
     acb = ACB(acb_data, awb_data)
     logger.debug(f"Extracting {acb_file}")

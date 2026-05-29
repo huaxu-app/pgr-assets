@@ -2,12 +2,14 @@ import logging
 import os
 from typing import Any, cast
 
-from PIL import Image
 import UnityPy
+from PIL import Image
+from UnityPy.classes import Sprite, TextAsset, Texture2D
 from UnityPy.enums import ClassIDType
-from UnityPy.classes import Texture2D, Sprite, TextAsset
 
 from pgr_assets.asset_paths import ROLECHARACTER_IMAGE_MARKER
+from pgr_assets.converters.binarytable.exceptions import BinaryTableError
+
 from .helpers import rewrite_text_asset
 
 logger = logging.getLogger("pgr-assets.extractors.bundle")
@@ -54,8 +56,10 @@ def extract_bundle(
                 logger.debug(f"Extracted {path}")
             # else:
             #     logger.warning(f"Unsupported type {obj.type.name} for {path}")
-        except Exception as e:
-            logger.error(f"Failed to extract {path}: {e}")
+        except (BinaryTableError, UnicodeDecodeError) as e:
+            logger.warning(f"Skipping {path}: {e}")
+        except Exception:
+            logger.exception(f"Unexpected failure extracting {path}")
 
 
 def get_text_asset(

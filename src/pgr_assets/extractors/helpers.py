@@ -1,8 +1,10 @@
 import io
 import os
+import struct
 from typing import Tuple
 
 from pgr_assets.asset_paths import TEMP_BYTES_MARKER
+from pgr_assets.converters.binarytable.exceptions import BinaryTableError
 from pgr_assets.converters.binarytable.table import BinaryTable
 
 
@@ -58,13 +60,13 @@ def is_utf8(data: bytes | bytearray) -> bool:
 
 
 def convert_to_csv(data: bytes | bytearray, game_version: tuple[int, int]) -> bytearray:
+    output = io.StringIO(newline="")
     try:
-        output = io.StringIO(newline="")
         table = BinaryTable(io.BytesIO(data), game_version)
         table.to_csv(output)
-        return bytearray(output.getvalue().encode())
-    except Exception as e:
-        raise e
+    except (ValueError, IndexError, struct.error) as e:
+        raise BinaryTableError(f"malformed binary table: {e}") from e
+    return bytearray(output.getvalue().encode())
 
 
 def rewrite_text_asset(

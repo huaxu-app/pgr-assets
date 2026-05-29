@@ -45,8 +45,8 @@ def download_env(env_dir: str, sources: SourceSet):
         ):
             try:
                 future.result()
-            except Exception as e:
-                logger.error(f"Failed to process bundle: {e}")
+            except Exception:
+                logger.exception("Failed to download bundle")
                 errors = True
 
     if errors:
@@ -97,6 +97,6 @@ def spines_cmd(args: SpinesCommand):
             logger.info("Extracting spine from %s", name)
             try:
                 extract_spine(name, [v.read()], args.output, write_json=args.with_json)
-            except Exception as e:
-                logger.error(f"Failed to extract {name}: {e}")
+            except Exception:
+                logger.exception(f"Failed to extract {name}")
                 continue

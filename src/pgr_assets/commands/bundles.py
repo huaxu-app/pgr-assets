@@ -7,6 +7,7 @@ from typing import List, Optional
 from tqdm import tqdm
 
 from pgr_assets.sources import SourceSet
+from pgr_assets.sources.sourceset import BlobNotFoundException
 from .helpers import build_source_set, BundleCommandArgs
 
 logger = logging.getLogger("pgr-assets")
@@ -31,8 +32,11 @@ def process(bundle: str, state: State):
             f.write(bundle_data)
         logger.debug(f"Downloaded {bundle}")
         return bundle
-    except Exception as e:
-        logger.exception(f"Failed to download {bundle}", exc_info=e)
+    except BlobNotFoundException as e:
+        logger.error(f"Could not resolve {bundle}: {e}")
+        return None
+    except Exception:
+        logger.exception(f"Failed to download {bundle}")
         return None
 
 
@@ -46,8 +50,8 @@ def execute_in_pool(
         ):
             try:
                 future.result()
-            except Exception as e:
-                logger.error(f"Failed to process bundle: {e}")
+            except Exception:
+                logger.exception("Worker crashed during download")
 
 
 class BundlesCommand(BundleCommandArgs):
