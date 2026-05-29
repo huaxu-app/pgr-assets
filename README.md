@@ -12,14 +12,18 @@ pip install pgr_assets@git+https://github.com/huaxu-app/pgr-assets
 ## Common usages
 
 ```bash
-# List assets on global:
-pgr-assets list
-
-# Switch servers by changing preset: (global, korea, japan, taiwan, china)
+# List every asset (pick a server with --preset: global, korea, japan, taiwan, china, china-beta)
 pgr-assets list --preset global
 
-# Extract all text assets
-pgr-assets extract --all-temp --output /path/to/output
+# Search the manifest: prints only bundles matching ALL terms (case-insensitive
+# substring, slashes allowed). Matches are highlighted on a terminal.
+pgr-assets list --preset global spine lucia
+
+# Extract every image bundle for global into ./out
+pgr-assets extract --preset global --all-images --output ./out
+
+# Extract specific bundles by name (discover them with `list` above)
+pgr-assets extract --preset global assets/product/ui/spine/lucia/lucia.ab --output ./out
 
 # For full usage instructions see the help output of the various commands
 ```

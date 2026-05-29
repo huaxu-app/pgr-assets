@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Literal, Optional, Set
+from typing import Iterable, List, Literal, Optional, Sequence, Set
 
 import UnityPy
 from tap import Tap
@@ -94,6 +94,52 @@ def selected_bundles(args: BundleCommandArgs, ss: SourceSet) -> Set[str]:
     return listed
 
 
+HIGHLIGHT = "\033[01;31m"  # bold red, matching grep's default
+RESET = "\033[0m"
+
+
+def filter_bundles(bundles: Iterable[str], patterns: Sequence[str]) -> List[str]:
+    """Sort bundles; with patterns, keep those matching every one as a
+    case-insensitive substring of the full path (AND-combined)."""
+    ordered = sorted(bundles)
+    if not patterns:
+        return ordered
+    needles = [p.lower() for p in patterns]
+    return [b for b in ordered if all(n in b.lower() for n in needles)]
+
+
+def highlight(text: str, patterns: Sequence[str]) -> str:
+    """Wrap every case-insensitive match of any pattern in ANSI color, grep-style.
+    Overlapping matches are merged so codes never nest."""
+    lowered = text.lower()
+    spans: List[tuple[int, int]] = []
+    for p in patterns:
+        needle = p.lower()
+        start = lowered.find(needle) if needle else -1
+        while start >= 0:
+            spans.append((start, start + len(needle)))
+            start = lowered.find(needle, start + len(needle))
+    if not spans:
+        return text
+
+    spans.sort()
+    merged = [spans[0]]
+    for s, e in spans[1:]:
+        if s <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], e))
+        else:
+            merged.append((s, e))
+
+    out: List[str] = []
+    prev = 0
+    for s, e in merged:
+        out.append(text[prev:s])
+        out.append(HIGHLIGHT + text[s:e] + RESET)
+        prev = e
+    out.append(text[prev:])
+    return "".join(out)
+
+
 def determine_decryption_key(version: tuple[int, ...]) -> str:
     for check_version, key in DECRYPTION_KEYS:
         if version >= check_version:
@@ -121,6 +167,10 @@ def _apply_decrypt_key(version: tuple[int, ...], override: Optional[str]) -> str
 
 
 def build_source_set(args: BaseArgs) -> ResolvedSources:
+    # Default to global when no source is specified; --primary/--patch opts out.
+    if args.preset is None and args.primary is None and args.patch is None:
+        args.preset = "global"
+
     primary = PRESETS[args.preset] if args.preset is not None else args.primary
     patch = PRESETS[args.preset] if args.preset is not None else args.patch
 
