@@ -14,7 +14,7 @@ from pgr_assets.sources import SourceError, SourceSet
 from pgr_assets.sources.sourceset import BlobNotFoundException
 
 from ..extractors.video_encoders import BaseVideoEncoder, HlsEncoder, WebMp4Encoder
-from .helpers import BundleCommandArgs, build_source_set
+from .helpers import BundleCommandArgs, build_source_set, selected_bundles
 
 logger = logging.getLogger("pgr-assets")
 
@@ -265,7 +265,7 @@ def extract_cmd(args: ExtractCommand):
         state.load_cues()
 
     # determine all tasks based on flags, use set because we don't want duplicates
-    listed_bundles = args.selected_bundles(ss)
+    listed_bundles = selected_bundles(args, ss)
 
     if len(listed_bundles) == 0:
         logger.error("No bundles specified")

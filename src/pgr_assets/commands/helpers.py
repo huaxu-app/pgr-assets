@@ -72,24 +72,26 @@ class BundleCommandArgs(BaseArgs):
     def configure(self) -> None:
         self.add_argument("bundles", nargs="*", help="Bundles to extract")
 
-    def selected_bundles(self, ss: SourceSet) -> Set[str]:
-        """Resolve the explicit bundle names plus everything matched by the
-        ``--all*`` flags into a deduplicated set."""
-        listed = set(self.bundles)
-        listed.update(
-            bundle
-            for bundle in ss.list_all_bundles()
-            if self.all
-            or (self.all_temp and bundle.endswith(".ab") and TEMP_BUNDLE_MARKER in bundle)
-            or (
-                self.all_images
-                and bundle.endswith(".ab")
-                and TEXTURE_BUNDLE_MARKER in bundle
-            )
-            or (self.all_audio and bundle.endswith(".acb"))
-            or (self.all_video and bundle.endswith(".usm"))
+
+def selected_bundles(args: BundleCommandArgs, ss: SourceSet) -> Set[str]:
+    """Resolve the explicit bundle names plus everything matched by the
+    ``--all*`` flags into a deduplicated set.
+    """
+    listed = set(args.bundles)
+    listed.update(
+        bundle
+        for bundle in ss.list_all_bundles()
+        if args.all
+        or (args.all_temp and bundle.endswith(".ab") and TEMP_BUNDLE_MARKER in bundle)
+        or (
+            args.all_images
+            and bundle.endswith(".ab")
+            and TEXTURE_BUNDLE_MARKER in bundle
         )
-        return listed
+        or (args.all_audio and bundle.endswith(".acb"))
+        or (args.all_video and bundle.endswith(".usm"))
+    )
+    return listed
 
 
 def determine_decryption_key(version: tuple[int, ...]) -> str:

@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from pgr_assets.sources import SourceSet
 from pgr_assets.sources.sourceset import BlobNotFoundException
-from .helpers import build_source_set, BundleCommandArgs
+from .helpers import build_source_set, BundleCommandArgs, selected_bundles
 
 logger = logging.getLogger("pgr-assets")
 
@@ -66,7 +66,7 @@ def bundles_cmd(args: BundlesCommand):
     state = State(ss, args.output)
 
     # determine all tasks based on flags, use set because we don't want duplicates
-    listed_bundles = args.selected_bundles(ss)
+    listed_bundles = selected_bundles(args, ss)
 
     if len(listed_bundles) == 0:
         logger.error("No bundles specified")
