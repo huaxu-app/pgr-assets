@@ -31,9 +31,7 @@ class DispatchContractTest(unittest.TestCase):
     """
 
     def test_bundles_dispatch_resolves_selection(self):
-        args = _parse(
-            ["bundles", "--preset", "global", "--output", "/tmp/o", "foo.ab"]
-        )
+        args = _parse(["bundles", "--preset", "global", "--output", "/tmp/o", "foo.ab"])
         # The dispatch target is bundles_cmd, and selection must run on `args`.
         # `func` is injected by Tap's set_defaults, so it's read dynamically.
         self.assertIs(getattr(args, "func"), bundles_mod.bundles_cmd)
@@ -55,7 +53,9 @@ class SelectedBundlesFilterTest(unittest.TestCase):
 
     def test_explicit_names_passed_through(self):
         ss = FakeSourceSet(set())
-        self.assertEqual({"x.ab", "y.acb"}, selected_bundles(self._args(["x.ab", "y.acb"]), ss))
+        self.assertEqual(
+            {"x.ab", "y.acb"}, selected_bundles(self._args(["x.ab", "y.acb"]), ss)
+        )
 
     def test_all_audio_filters_acb(self):
         ss = FakeSourceSet({"a.acb", "b.ab", "c.usm"})

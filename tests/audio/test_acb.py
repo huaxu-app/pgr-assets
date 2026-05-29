@@ -13,7 +13,7 @@ class CommandSynthIndexTest(unittest.TestCase):
     def test_note_on_type_2_returns_index(self):
         # opcode 0x07d0, size 4, payload = (type=2, index=0) — the real shape
         # taken from the fixture's first track event.
-        self.assertEqual(0, ACB._command_synth_index(bytes.fromhex("07d00400020000000000")))
+        self.assertEqual(0, ACB._command_synth_index(bytes.fromhex("07d00400020000000000")))  # fmt: skip
 
     def test_note_on_returns_referenced_index(self):
         # type=2, index=3
@@ -21,7 +21,7 @@ class CommandSynthIndexTest(unittest.TestCase):
 
     def test_skips_leading_command_then_finds_note_on(self):
         # opcode 0x0001 (size 0), then the note-on (type=2, index=5).
-        self.assertEqual(5, ACB._command_synth_index(bytes.fromhex("00010007d00400020005")))
+        self.assertEqual(5, ACB._command_synth_index(bytes.fromhex("00010007d00400020005")))  # fmt: skip
 
     def test_non_synth_reference_type_ignored(self):
         # type=1 is not the SynthTable reference -> no match.
@@ -62,9 +62,7 @@ class AcbFixtureTest(unittest.TestCase):
 
     def test_all_cues_are_sequences(self):
         tables = self.acb.payload[0]
-        self.assertEqual(
-            {3}, {e["ReferenceType"][1] for e in tables["CueTable"]}
-        )
+        self.assertEqual({3}, {e["ReferenceType"][1] for e in tables["CueTable"]})
 
     def test_waveform_ids_resolve_one_to_one(self):
         for idx in range(13):

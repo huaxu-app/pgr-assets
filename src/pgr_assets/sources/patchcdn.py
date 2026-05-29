@@ -57,7 +57,10 @@ class PatchCdnData:
             "client/patch",
         ]
 
-        if self.key and parse_version(application_version) >= PATCH_KEY_SCHEME_MIN_VERSION:
+        if (
+            self.key
+            and parse_version(application_version) >= PATCH_KEY_SCHEME_MIN_VERSION
+        ):
             path += [self.key]
 
         path += [
@@ -190,7 +193,9 @@ class PatchCdnSource(Source):
         self._logger.debug(f"Downloading blob {blob} ({url})")
         resp = self._request(url)
         if resp.status_code != 200:
-            raise BlobDownloadError(f"Failed to download blob {blob} - {resp.status_code}")
+            raise BlobDownloadError(
+                f"Failed to download blob {blob} - {resp.status_code}"
+            )
         return resp.content
 
     def bundle_to_blob(self, bundle: str) -> Union[str, None]:
@@ -222,7 +227,9 @@ class PatchCdnSource(Source):
         # Index is an asset bundle, containing the msgpack'd index
         bundle = self._request(f"{self._cdn_url}index")
         if bundle.status_code != 200:
-            raise BlobDownloadError(f"Failed to download patch index - {bundle.status_code}")
+            raise BlobDownloadError(
+                f"Failed to download patch index - {bundle.status_code}"
+            )
         env = UnityPy.load(bundle.content)
 
         if "assets/temp/index.bytes" in env.container:
@@ -250,7 +257,9 @@ class PatchCdnSource(Source):
     def get_tab(url: str) -> Dict[str, str]:
         resp = get_session().get(url)
         if resp.status_code != 200:
-            raise BlobDownloadError(f"Failed to download raw {url} - {resp.status_code}")
+            raise BlobDownloadError(
+                f"Failed to download raw {url} - {resp.status_code}"
+            )
 
         data = {}
         for line in resp.content.decode("utf-8").splitlines(False):

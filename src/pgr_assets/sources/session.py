@@ -19,7 +19,7 @@ class _TimeoutHTTPAdapter(HTTPAdapter):
         super().__init__(*args, **kwargs)
 
     def send(
-            self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
+        self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
     ):
         if timeout is None:
             timeout = self._timeout

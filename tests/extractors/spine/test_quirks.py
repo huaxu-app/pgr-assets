@@ -56,9 +56,7 @@ class ApplyQuirkTest(unittest.TestCase):
         self.assertEqual((200, 200), spine.found_size)
 
     def test_position_and_scale(self):
-        spine = _spine(
-            "luolan/luolantutorial/luolantutorial", SpineInfo("a", "a")
-        )
+        spine = _spine("luolan/luolantutorial/luolantutorial", SpineInfo("a", "a"))
         apply_quirk(spine)
         self.assertEqual((0, 5), spine.spines[0].position)
         self.assertEqual(0.26, spine.spines[0].scale)

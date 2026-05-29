@@ -105,7 +105,9 @@ class PcStarterSource(Source):
         self._logger.debug(f"Downloading blob {blob} ({url})")
         resp = get_session().get(url)
         if resp.status_code != 200:
-            raise BlobDownloadError(f"Failed to download blob {blob} - {resp.status_code}")
+            raise BlobDownloadError(
+                f"Failed to download blob {blob} - {resp.status_code}"
+            )
         return resp.content
 
     def version(self) -> Union[Tuple[int, ...], None]:
@@ -162,7 +164,9 @@ class PcStarterSource(Source):
     def _get_json(url: str) -> dict:
         resp = get_session().get(url)
         if resp.status_code != 200:
-            raise BlobDownloadError(f"Failed to download json {url} - {resp.status_code}")
+            raise BlobDownloadError(
+                f"Failed to download json {url} - {resp.status_code}"
+            )
         return resp.json()
 
     def __str__(self):

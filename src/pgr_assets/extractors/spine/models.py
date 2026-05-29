@@ -111,7 +111,7 @@ class Spine:
             index = {x: i for i, x in enumerate(self.spine_order_list)}
             self.spines = sorted(
                 self.spines,
-                key=lambda x: min(index.get(str(p), float('inf')) for p in x.ids),
+                key=lambda x: min(index.get(str(p), float("inf")) for p in x.ids),
                 reverse=True,
             )
 
