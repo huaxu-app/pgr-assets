@@ -1,8 +1,8 @@
-import logging
 from typing import Optional
 
 from tap import Tap
 
+from pgr_assets.logging_setup import configure_logging
 from .bundles import BundlesCommand
 from .extract import ExtractCommand
 from .list import ListCommand
@@ -26,4 +26,4 @@ class Args(Tap):
         # is applied for every subcommand; individual *_cmd functions must not
         # need to re-invoke it.
         if self.log_level:
-            logging.getLogger().setLevel(self.log_level.upper())
+            configure_logging(self.log_level)

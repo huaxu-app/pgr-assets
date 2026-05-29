@@ -32,7 +32,7 @@ class SourceSet:
             raise UnknownSourceError(f"Unknown primary type {primary_type}")
 
         impl_version = impl.version()
-        logger.info(f"Primary source {impl} version {impl_version}")
+        logger.debug(f"Primary source {impl} version {impl_version}")
 
         self.sources.append(impl)
 
@@ -61,7 +61,7 @@ class SourceSet:
         impl = PatchCdnSource(PatchCdn[patch_type], version, key=key)
 
         impl_version = impl.version()
-        logger.info(f"Patch source {patch_type} version {impl_version}")
+        logger.debug(f"Patch source {patch_type} version {impl_version}")
         # if impl_version is not None and version != impl_version:
         #    logger.error(f"Patch source version mismatch. Expected {version}, got {impl_version}")
         #    sys.exit(1)
