@@ -9,13 +9,12 @@ import UnityPy
 from tqdm import tqdm
 
 from pgr_assets import extractors
-from pgr_assets.asset_paths import TEMP_BUNDLE_MARKER, TEXTURE_BUNDLE_MARKER
 from pgr_assets.audio import ACB, CueRegistry
 from pgr_assets.sources import SourceSet
 from pgr_assets.sources.sourceset import BlobNotFoundException
 
 from ..extractors.video_encoders import BaseVideoEncoder, HlsEncoder, WebMp4Encoder
-from .helpers import BaseArgs, build_source_set
+from .helpers import BundleCommandArgs, build_source_set
 
 logger = logging.getLogger("pgr-assets")
 
@@ -25,30 +24,21 @@ AUDIO_KEY = 62855594017927612
 _WORKER_STATE: Optional["State"] = None
 
 
-class ExtractCommand(BaseArgs):
-    output: str  # Output directory to use.
-    all_temp: bool = False  # Extract all temp (text) bundles
-    all_audio: bool = False  # Extract all audio bundles
-    all_video: bool = False  # Extract all video bundles
-    all_images: bool = False  # Extract all image bundles
-
+class ExtractCommand(BundleCommandArgs):
     convert_binary_tables: bool = False  # Allows converting binary tables into CSV files (WARNING: not everything is supported)
     raw_audio: bool = False  # Store extracted audio from ACB/AWB as WAV files instead of converting them to MP3
     hls: bool = (
         False  # Generate HTTP Live Streaming variants for videos on top of mp4's
     )
 
-    all: bool = False  # Extract all I can find
     cache: str = ""  # Path to sha1 cache file
     write_settings: bool = False  # Write a small settings file to the output directory containing preset and version
 
     workers: int = 0  # Number of parallel workers for non-video bundles (0 = CPU count)
     fail_on_error: bool = False  # Exit with a non-zero status if any bundle fails
 
-    bundles: List[str]  # Bundles to extract
-
     def configure(self) -> None:
-        self.add_argument("bundles", nargs="*", help="Bundles to extract")
+        super().configure()
         self.set_defaults(func=extract_cmd)
 
 

@@ -6,9 +6,8 @@ from typing import List, Optional
 
 from tqdm import tqdm
 
-from pgr_assets.asset_paths import TEMP_BUNDLE_MARKER, TEXTURE_BUNDLE_MARKER
 from pgr_assets.sources import SourceSet
-from .helpers import build_source_set, BaseArgs
+from .helpers import build_source_set, BundleCommandArgs
 
 logger = logging.getLogger("pgr-assets")
 
@@ -51,18 +50,9 @@ def execute_in_pool(
                 logger.error(f"Failed to process bundle: {e}")
 
 
-class BundlesCommand(BaseArgs):
-    output: str  # Output directory to use.
-    all_temp: bool = False  # Extract all temp (text) bundles
-    all_audio: bool = False  # Extract all audio bundles
-    all_video: bool = False  # Extract all video bundles
-    all_images: bool = False  # Extract all image bundles
-
-    all: bool = False  # Extract all I can find
-    bundles: List[str]  # Bundles to extract
-
+class BundlesCommand(BundleCommandArgs):
     def configure(self) -> None:
-        self.add_argument("bundles", nargs="*", help="Bundles to extract")
+        super().configure()
         self.set_defaults(func=bundles_cmd)
 
 
@@ -73,20 +63,7 @@ def bundles_cmd(args: BundlesCommand):
     state = State(ss, args.output)
 
     # determine all tasks based on flags, use set because we don't want duplicates
-    listed_bundles = set(args.bundles)
-    listed_bundles.update(
-        bundle
-        for bundle in ss.list_all_bundles()
-        if args.all
-        or (args.all_temp and bundle.endswith(".ab") and TEMP_BUNDLE_MARKER in bundle)
-        or (
-            args.all_images
-            and bundle.endswith(".ab")
-            and TEXTURE_BUNDLE_MARKER in bundle
-        )
-        or (args.all_audio and bundle.endswith(".acb"))
-        or (args.all_video and bundle.endswith(".usm"))
-    )
+    listed_bundles = args.selected_bundles(ss)
 
     if len(listed_bundles) == 0:
         logger.error("No bundles specified")

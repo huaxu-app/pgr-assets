@@ -1,8 +1,9 @@
-from typing import Optional, Literal
+from typing import List, Literal, Optional, Set
 
 import UnityPy
 from tap import Tap
 
+from pgr_assets.asset_paths import TEMP_BUNDLE_MARKER, TEXTURE_BUNDLE_MARKER
 from pgr_assets.sources import SourceSet
 
 VERSION_BAD_ENCRYPT = (3, 4, 0)
@@ -51,6 +52,43 @@ class BaseArgs(Tap):
     version: Optional[str] = None  # The client version to use. Inferred by default
 
     decrypt_key: Optional[str] = None  # Decryption key to use for asset bundles
+
+
+class BundleCommandArgs(BaseArgs):
+    """Shared flags and selection logic for commands that operate on a chosen
+    set of bundles and write them to an output directory (``extract``/``bundles``)."""
+
+    output: str  # Output directory to use.
+
+    all_temp: bool = False  # Extract all temp (text) bundles
+    all_audio: bool = False  # Extract all audio bundles
+    all_video: bool = False  # Extract all video bundles
+    all_images: bool = False  # Extract all image bundles
+    all: bool = False  # Extract all I can find
+
+    bundles: List[str]  # Bundles to extract
+
+    def configure(self) -> None:
+        self.add_argument("bundles", nargs="*", help="Bundles to extract")
+
+    def selected_bundles(self, ss: SourceSet) -> Set[str]:
+        """Resolve the explicit bundle names plus everything matched by the
+        ``--all*`` flags into a deduplicated set."""
+        listed = set(self.bundles)
+        listed.update(
+            bundle
+            for bundle in ss.list_all_bundles()
+            if self.all
+            or (self.all_temp and bundle.endswith(".ab") and TEMP_BUNDLE_MARKER in bundle)
+            or (
+                self.all_images
+                and bundle.endswith(".ab")
+                and TEXTURE_BUNDLE_MARKER in bundle
+            )
+            or (self.all_audio and bundle.endswith(".acb"))
+            or (self.all_video and bundle.endswith(".usm"))
+        )
+        return listed
 
 
 def determine_decryption_key(version: tuple[int, ...]) -> str:
