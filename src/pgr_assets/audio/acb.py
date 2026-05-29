@@ -1,13 +1,33 @@
 # Heavily modified PyCriCodecs.ACBj
+import io
 import logging
 import os
 import struct
+import wave
 from typing import cast, Any, List
 
 from PyCriCodecs import UTF, AWB, UTFTypeValues, UTFType, HCA
-from ffmpeg import FFmpeg
 
 logger = logging.getLogger("audio.acb")
+
+try:
+    import lameenc
+except ImportError:  # in-process encoder is optional; fall back to ffmpeg
+    logger.warning("lameenc not available, falling back to ffmpeg")
+    lameenc = None
+
+
+def _encode_mp3(wav_bytes: bytes) -> bytes:
+    assert lameenc is not None  # callers guard on availability
+    wf = wave.open(io.BytesIO(wav_bytes), "rb")
+    pcm = wf.readframes(wf.getnframes())
+    enc = lameenc.Encoder()
+    enc.set_vbr(4)  # vbr_mtrh
+    enc.set_vbr_quality(2)
+    enc.set_in_sample_rate(wf.getframerate())
+    enc.set_channels(wf.getnchannels())
+    enc.set_quality(2)  # encoder algorithm effort, independent of VBR target
+    return enc.encode(pcm) + enc.flush()
 
 
 class ACB:
@@ -175,18 +195,16 @@ class ACB:
                     ).decode()
 
                     if encode:
-                        ffmpeg = (
-                            FFmpeg()
-                            .option("y")
-                            .option("hwaccel", "auto")
-                            .input("pipe:0")
-                            .output(
-                                os.path.join(dirname, name + ".mp3"),
-                                {"c:a": "libmp3lame", "q:a": 2},
-                            )
-                        )
+                        mp3_path = os.path.join(dirname, name + ".mp3")
+                        if lameenc is not None:
+                            with open(mp3_path, "wb") as f:
+                                f.write(_encode_mp3(audio))
+                        else:
+                            from ffmpeg import FFmpeg
 
-                        ffmpeg.execute(audio)
+                            FFmpeg().option("y").input("pipe:0").output(
+                                mp3_path, {"c:a": "libmp3lame", "q:a": 2}
+                            ).execute(audio)
                     else:
                         with open(os.path.join(dirname, name + ".wav"), "wb") as f:
                             f.write(audio)
