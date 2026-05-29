@@ -21,6 +21,10 @@ class Column:
     def is_int_keyed_dict(self):
         return self.type == 10 or self.type == 11 or self.type == 13
 
+    def is_vector_list(self):
+        # ListFix2 / ListFix3 / ListFixQuaternion: each element is itself a vector
+        return 19 <= self.type <= 21
+
     def add_dict_key(self, key):
         if self.dict_keys is None or self.dict_key_presence is None:
             self.dict_keys = list()
@@ -89,7 +93,9 @@ class BinaryTable:
             return cls._KIND_INT_DICT
         if column.is_dict_type():
             return cls._KIND_STR_DICT
-        if 4 <= column.type <= 8:
+        # Lists (4-8), fixed-arity vectors (16-18) and vector lists (19-21) all
+        # surface as Python lists whose max length drives the indexed columns.
+        if 4 <= column.type <= 8 or 16 <= column.type <= 21:
             return cls._KIND_LIST
         return cls._KIND_SCALAR
 
@@ -274,7 +280,12 @@ class BinaryTable:
                     yield value.get(i + 1, "")
             elif column.list_length > 0:
                 for i in range(column.list_length):
-                    yield value[i] if i < len(value) else ""
+                    if i >= len(value):
+                        yield ""
+                    elif column.is_vector_list():
+                        yield ";".join(str(c) for c in value[i])
+                    else:
+                        yield value[i]
             # Stringy dicts have their own global key list
             elif column.is_dict_type():
                 for k in column.dict_keys or []:

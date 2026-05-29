@@ -67,6 +67,18 @@ class Reader:
                 return self.read_int()
             case 15:
                 return self.read_float()
+            case 16:
+                return self.read_fix2()
+            case 17:
+                return self.read_fix3()
+            case 18:
+                return self.read_fix_quaternion()
+            case 19:
+                return self.read_list_fix2()
+            case 20:
+                return self.read_list_fix3()
+            case 21:
+                return self.read_list_fix_quaternion()
             case _:
                 raise BinaryTableError(f"Unknown column type: {type}")
 
@@ -193,6 +205,27 @@ class Reader:
     def read_list_fix(self):
         count = self.read_int()
         return [self.read_fix() for _ in range(count)]
+
+    def read_fix2(self):
+        return [self.read_fix(), self.read_fix()]
+
+    def read_fix3(self):
+        return [self.read_fix(), self.read_fix(), self.read_fix()]
+
+    def read_fix_quaternion(self):
+        return [self.read_fix(), self.read_fix(), self.read_fix(), self.read_fix()]
+
+    def read_list_fix2(self):
+        count = self.read_int()
+        return [self.read_fix2() for _ in range(count)]
+
+    def read_list_fix3(self):
+        count = self.read_int()
+        return [self.read_fix3() for _ in range(count)]
+
+    def read_list_fix_quaternion(self):
+        count = self.read_int()
+        return [self.read_fix_quaternion() for _ in range(count)]
 
     def peek_byte(self):
         return self.buffer[self.pos]
