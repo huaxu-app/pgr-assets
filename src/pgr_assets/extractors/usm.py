@@ -1,7 +1,8 @@
 import logging
 import os
 import tempfile
-from typing import Union, cast, Any
+from typing import Any, Union, cast
+
 import PyCriCodecs
 
 from pgr_assets.extractors.video_encoders import BaseVideoEncoder, Track
@@ -10,11 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 class PGRUSM(PyCriCodecs.USM):
-    audio_language: dict[str, str] = {}
+    # Maps stream key (e.g. "@SFA_0") -> RFC 5646 language code.
+    audio_language: dict[str, str]
 
     def __init__(self, filename, key: Union[str, int, bool] = False):
-        super().__init__(filename, cast(str, key)) # bad cast, but PyCriCodecs is bad at typing
+        super().__init__(
+            filename, cast(str, key)
+        )  # bad cast, but PyCriCodecs is bad at typing
         self.key = key
+        self.audio_language = {}
 
     def reader(self, chuncksize, offset, padding, header) -> bytearray:
         """Chunks reader function, reads all data in a chunk and returns a bytearray."""
@@ -42,8 +47,12 @@ class PGRUSM(PyCriCodecs.USM):
         for k, v in self.output.items():
             if k.startswith("@SFA_"):
                 self.output[k] = PyCriCodecs.HCA(
-                    cast(Any, v), # cast: it gets passed to bytearray, which accepts bytes too
-                    key=cast(Any, self.key) # cast: this is fine, but again... PyCriCodecs
+                    cast(
+                        Any, v
+                    ),  # cast: it gets passed to bytearray, which accepts bytes too
+                    key=cast(
+                        Any, self.key
+                    ),  # cast: this is fine, but again... PyCriCodecs
                 ).decode()
                 self.audio_language[k] = ffmpeg_language_code(filenames[i])
             i += 1

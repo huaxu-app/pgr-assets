@@ -3,18 +3,19 @@ import json
 import logging
 import os
 import sys
-from typing import Set, List, Optional
+from typing import List, Optional, Set
 
 import UnityPy
 from tqdm import tqdm
 
 from pgr_assets import extractors
 from pgr_assets.asset_paths import TEMP_BUNDLE_MARKER, TEXTURE_BUNDLE_MARKER
-from pgr_assets.audio import CueRegistry, ACB
+from pgr_assets.audio import ACB, CueRegistry
 from pgr_assets.sources import SourceSet
 from pgr_assets.sources.sourceset import BlobNotFoundException
-from .helpers import build_source_set, BaseArgs
-from ..extractors.video_encoders import BaseVideoEncoder, WebMp4Encoder, HlsEncoder
+
+from ..extractors.video_encoders import BaseVideoEncoder, HlsEncoder, WebMp4Encoder
+from .helpers import BaseArgs, build_source_set
 
 logger = logging.getLogger("pgr-assets")
 
@@ -59,8 +60,7 @@ class State:
     convert_binary_tables: bool
     encode_mp3: bool
     game_version: tuple[int, int]
-
-    video_encoders: list[BaseVideoEncoder] = [WebMp4Encoder()]
+    video_encoders: list[BaseVideoEncoder]
 
     def __init__(self, sources: SourceSet, args: ExtractCommand):
         version = sources.version()
@@ -75,6 +75,7 @@ class State:
         self.convert_binary_tables = args.convert_binary_tables
         self.encode_mp3 = not args.raw_audio
 
+        self.video_encoders = [WebMp4Encoder()]
         if args.hls:
             self.video_encoders.append(HlsEncoder())
 
