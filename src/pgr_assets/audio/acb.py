@@ -10,29 +10,6 @@ from ffmpeg import FFmpeg
 logger = logging.getLogger("audio.acb")
 
 
-def get_extension(encode_type: int) -> str:
-    if encode_type == 0 or encode_type == 3:
-        return ".adx"  # Maybe 0 is ahx?
-    elif encode_type == 2 or encode_type == 6:
-        return ".hca"
-    elif encode_type == 7 or encode_type == 10:
-        return ".vag"
-    elif encode_type == 8:
-        return ".at3"
-    elif encode_type == 9:
-        return ".bcwav"
-    elif encode_type == 11 or encode_type == 18:
-        return ".at9"
-    elif encode_type == 12:
-        return ".xma"
-    elif encode_type == 13 or encode_type == 4 or encode_type == 5:
-        return ".dsp"
-    elif encode_type == 19:
-        return ".m4a"
-    else:
-        return ""
-
-
 class ACB:
     """An ACB is basically a giant @UTF table. Use this class to extract any ACB."""
 
@@ -217,22 +194,3 @@ class ACB:
                     logger.warning(
                         f"Failed to extract {name} with index {cue_idx}: waveform index out of range"
                     )
-
-    def extract_old(self, decode: bool = False, key: int = 0, dirname: str = ""):
-        """Extracts audio files in an AWB/ACB without preserving filenames."""
-        if dirname:
-            os.makedirs(dirname, exist_ok=True)
-        filename = 0
-        assert self.awb is not None
-        for i in cast(List[Any], self.awb.getfiles()):
-            print(filename, len(i))
-            extension: str = get_extension(
-                self.payload[0]["WaveformTable"][filename]["EncodeType"][1]
-            )
-            if decode and extension == ".hca":
-                hca = HCA(i, key=key, subkey=cast(Any, self.awb.subkey)).decode()
-                open(os.path.join(dirname, str(filename) + ".wav"), "wb").write(hca)
-                filename += 1
-            else:
-                open(os.path.join(dirname, f"{filename}{extension}"), "wb").write(i)
-                filename += 1

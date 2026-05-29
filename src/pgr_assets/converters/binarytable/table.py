@@ -3,6 +3,7 @@ import struct
 from dataclasses import dataclass
 from typing import BinaryIO, List, IO, Dict, cast
 
+from .exceptions import BinaryTableError
 from .reader import Reader
 
 
@@ -232,9 +233,9 @@ class BinaryTable:
             try:
                 value = read_by_column_type(column.type)
             except Exception as e:
-                raise Exception(
-                    f"Error reading column {column.name} at row {row_index}", e
-                )
+                raise BinaryTableError(
+                    f"Error reading column {column.name} at row {row_index}"
+                ) from e
 
             append(value)
 

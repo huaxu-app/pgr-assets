@@ -9,6 +9,7 @@ import UnityPy
 from tqdm import tqdm
 
 from pgr_assets import extractors
+from pgr_assets.asset_paths import TEMP_BUNDLE_MARKER, TEXTURE_BUNDLE_MARKER
 from pgr_assets.audio import CueRegistry, ACB
 from pgr_assets.sources import SourceSet
 from pgr_assets.sources.sourceset import BlobNotFoundException
@@ -277,11 +278,11 @@ def extract_cmd(args: ExtractCommand):
         bundle
         for bundle in ss.list_all_bundles()
         if args.all
-        or (args.all_temp and bundle.endswith(".ab") and "assets/temp/" in bundle)
+        or (args.all_temp and bundle.endswith(".ab") and TEMP_BUNDLE_MARKER in bundle)
         or (
             args.all_images
             and bundle.endswith(".ab")
-            and "assets/product/texture/" in bundle
+            and TEXTURE_BUNDLE_MARKER in bundle
         )
         or (args.all_audio and bundle.endswith(".acb"))
         or (args.all_video and bundle.endswith(".usm"))

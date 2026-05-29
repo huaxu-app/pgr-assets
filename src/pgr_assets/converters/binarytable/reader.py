@@ -3,6 +3,8 @@ import struct
 from decimal import Decimal
 from typing import BinaryIO, Callable, Optional
 
+from .exceptions import BinaryTableError
+
 MAX_I32 = 2_147_483_647
 FLOAT_TO_INT = 10_000
 
@@ -66,7 +68,7 @@ class Reader:
             case 15:
                 return self.read_float()
             case _:
-                raise Exception(f"Unknown column type: {type}")
+                raise BinaryTableError(f"Unknown column type: {type}")
 
     def read_u8(self):
         pos = self.pos

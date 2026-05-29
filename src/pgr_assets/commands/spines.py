@@ -6,6 +6,7 @@ import os
 import UnityPy
 from tqdm.auto import tqdm
 
+from pgr_assets.asset_paths import SPINE_BUNDLE_MARKER, SPINE_PREFAB_PREFIX
 from pgr_assets.extractors.spine.extractor import extract_spine
 from pgr_assets.extractors.spine import quirks
 from pgr_assets.sources import SourceSet
@@ -31,7 +32,7 @@ def download_env_bundle(bundle: str, env_dir: str, sources: SourceSet):
 
 def download_env(env_dir: str, sources: SourceSet):
     logger.info(f"Downloading Unity environment to {env_dir}")
-    bundles = [b for b in sources.list_all_bundles() if "spine" in b]
+    bundles = [b for b in sources.list_all_bundles() if SPINE_BUNDLE_MARKER in b]
 
     errors = False
     with concurrent.futures.ProcessPoolExecutor(max_workers=None) as executor:
@@ -49,7 +50,7 @@ def download_env(env_dir: str, sources: SourceSet):
                 errors = True
 
     if errors:
-        raise Exception("Failed to download all bundles")
+        raise RuntimeError("Failed to download all bundles")
 
 
 class SpinesCommand(BaseArgs):
@@ -71,14 +72,11 @@ def spines_cmd(args: SpinesCommand):
 
     all_prefabs = {k: v for k, v in env.container.items() if k.endswith(".prefab")}
     if args.only_login:
-        all_prefabs = {
-            "assets/product/ui/spine/spinelogin.prefab": all_prefabs[
-                "assets/product/ui/spine/spinelogin.prefab"
-            ]
-        }
+        login_prefab = SPINE_PREFAB_PREFIX + "spinelogin.prefab"
+        all_prefabs = {login_prefab: all_prefabs[login_prefab]}
 
     for k, v in all_prefabs.items():
-        name = k.removeprefix("assets/product/ui/spine/").removesuffix(".prefab")
+        name = k.removeprefix(SPINE_PREFAB_PREFIX).removesuffix(".prefab")
         if name == "spinelogin":
             version = sources.version()
             assert version is not None
@@ -91,7 +89,7 @@ def spines_cmd(args: SpinesCommand):
         if (glue := quirks.find_glue(name)) is not None:
             logger.info("Quirk triggered: glue %s", glue.name)
             objects = [
-                env.container["assets/product/ui/spine/" + layer + ".prefab"].read()
+                env.container[SPINE_PREFAB_PREFIX + layer + ".prefab"].read()
                 for layer in glue.layers
             ]
             extract_spine(glue.name, objects, args.output, write_json=args.with_json)

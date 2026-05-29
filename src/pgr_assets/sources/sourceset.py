@@ -2,13 +2,13 @@ import logging
 from typing import Union, Tuple
 
 from . import PatchCdn, PatchCdnSource, ObbSource, PcStarterSource, PcStarterCdn, Source
+from .exceptions import BlobNotFoundException, SourceError, UnknownSourceError
 from .xbuildconfig import extract_build_key
 
 logger = logging.getLogger("sourceset")
 
-
-class BlobNotFoundException(Exception):
-    pass
+# Re-exported for callers that import it from this module historically.
+__all__ = ["SourceSet", "BlobNotFoundException"]
 
 
 class SourceSet:
@@ -22,7 +22,7 @@ class SourceSet:
         elif primary_type in PcStarterCdn.__members__:
             impl = PcStarterSource(PcStarterCdn[primary_type], prerelease)
         else:
-            raise Exception(f"Unknown primary type {primary_type}")
+            raise UnknownSourceError(f"Unknown primary type {primary_type}")
 
         impl_version = impl.version()
         logger.info(f"Primary source {impl} version {impl_version}")
@@ -31,7 +31,7 @@ class SourceSet:
 
     def add_patch(self, patch_type: str, version: Union[str, None]):
         if patch_type not in PatchCdn.__members__:
-            raise Exception(f"Unknown patch type {patch_type}")
+            raise UnknownSourceError(f"Unknown patch type {patch_type}")
 
         if version is None:
             inferred = self.version()
@@ -42,7 +42,7 @@ class SourceSet:
                     version_nibbles = (version_nibbles[0], version_nibbles[1], 0)
                 version = "%d.%d.%d" % version_nibbles
         if version is None:
-            raise Exception(
+            raise SourceError(
                 "Patch version required, and could not be inferred from earlier sources"
             )
 
@@ -67,11 +67,6 @@ class SourceSet:
             if version is not None:
                 return version
         return None
-
-    def disable_primary(self):
-        self.sources = [
-            source for source in self.sources if isinstance(source, PatchCdnSource)
-        ]
 
     def _resources_assets_bytes(self) -> bytes:
         for source in self.sources:

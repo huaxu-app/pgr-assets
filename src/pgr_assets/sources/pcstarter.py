@@ -5,6 +5,7 @@ import UnityPy
 
 from . import Source
 from ._index import read_textasset_bytes, loads_index
+from .exceptions import BlobDownloadError, SourceIndexError
 from .session import get_session
 from dataclasses import dataclass
 from enum import Enum
@@ -88,7 +89,7 @@ class PcStarterSource(Source):
         env = UnityPy.load(self.get_blob("index"))
 
         if "assets/temp/index.bytes" not in env.container:
-            raise Exception("Failed to find index in patch index bundle")
+            raise SourceIndexError("Failed to find index in patch index bundle")
 
         index = loads_index(read_textasset_bytes(env, "assets/temp/index.bytes"))[0]
         self._matrix_index = index
@@ -102,7 +103,7 @@ class PcStarterSource(Source):
         self._logger.debug(f"Downloading blob {blob} ({url})")
         resp = get_session().get(url)
         if resp.status_code != 200:
-            raise Exception(f"Failed to download blob {blob} - {resp.status_code}")
+            raise BlobDownloadError(f"Failed to download blob {blob} - {resp.status_code}")
         return resp.content
 
     def version(self) -> Union[Tuple[int, ...], None]:
@@ -161,7 +162,7 @@ class PcStarterSource(Source):
     def _get_json(url: str) -> dict:
         resp = get_session().get(url)
         if resp.status_code != 200:
-            raise Exception(f"Failed to download json {url} - {resp.status_code}")
+            raise BlobDownloadError(f"Failed to download json {url} - {resp.status_code}")
         return resp.json()
 
     def __str__(self):

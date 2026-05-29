@@ -7,6 +7,7 @@ import UnityPy
 from UnityPy.enums import ClassIDType
 from UnityPy.classes import Texture2D, Sprite, TextAsset
 
+from pgr_assets.asset_paths import ROLECHARACTER_IMAGE_MARKER
 from .helpers import rewrite_text_asset
 
 logger = logging.getLogger("pgr-assets.extractors.bundle")
@@ -80,7 +81,7 @@ def save_image(img: Image.Image, dest: str):
     img.save(dest + ".png")
     img.save(dest + ".webp", lossless=False, quality=80)
 
-    if "/image/rolecharacter/" in dest:
+    if ROLECHARACTER_IMAGE_MARKER in dest:
         thumb = img.copy()
         thumb.thumbnail((256, 256))
         thumb.save(dest + ".256.webp", lossless=False, quality=80)

@@ -2,6 +2,7 @@ import io
 import os
 from typing import Tuple
 
+from pgr_assets.asset_paths import TEMP_BYTES_MARKER
 from pgr_assets.converters.binarytable.table import BinaryTable
 
 
@@ -25,7 +26,7 @@ def decrypt(content, offset=None, count=None):
     if count is None:
         count = len(content)
     if len(content) < offset + count:
-        raise Exception("Invalid offset+count")
+        raise ValueError("Invalid offset+count")
 
     # One specific byte from the key is chosen to xor with everything? Why?
     num = count % len(x_crypto_key)
@@ -75,7 +76,7 @@ def rewrite_text_asset(
     # None = not yet computed; reused below so a payload is decoded at most once
     # while data stays unchanged. Reset to None whenever data is replaced.
     data_is_utf8: bool | None = None
-    if "/temp/bytes/" in path:
+    if TEMP_BYTES_MARKER in path:
         if allow_binary_table_convert and path.endswith(".tab.bytes"):
             data = convert_to_csv(data, game_version)
             path = path.replace(".tab.bytes", ".csv")

@@ -13,6 +13,7 @@ import UnityPy
 
 from . import Source
 from ._index import read_textasset_bytes, loads_index
+from .exceptions import BlobDownloadError, SourceIndexError
 from .session import get_session
 
 SIGN_ALPHABET = string.ascii_letters + string.digits
@@ -190,7 +191,7 @@ class PatchCdnSource(Source):
         self._logger.debug(f"Downloading blob {blob} ({url})")
         resp = self._request(url)
         if resp.status_code != 200:
-            raise Exception(f"Failed to download blob {blob} - {resp.status_code}")
+            raise BlobDownloadError(f"Failed to download blob {blob} - {resp.status_code}")
         return resp.content
 
     def bundle_to_blob(self, bundle: str) -> Union[str, None]:
@@ -222,7 +223,7 @@ class PatchCdnSource(Source):
         # Index is an asset bundle, containing the msgpack'd index
         bundle = self._request(f"{self._cdn_url}index")
         if bundle.status_code != 200:
-            raise Exception(f"Failed to download patch index - {bundle.status_code}")
+            raise BlobDownloadError(f"Failed to download patch index - {bundle.status_code}")
         env = UnityPy.load(bundle.content)
 
         if "assets/temp/index.bytes" in env.container:
@@ -235,7 +236,7 @@ class PatchCdnSource(Source):
             for v in partial_indices[1].values():
                 index.update(v)
         else:
-            raise Exception("Failed to find index in patch index bundle")
+            raise SourceIndexError("Failed to find index in patch index bundle")
 
         self._index = index
         return index
@@ -250,7 +251,7 @@ class PatchCdnSource(Source):
     def get_tab(url: str) -> Dict[str, str]:
         resp = get_session().get(url)
         if resp.status_code != 200:
-            raise Exception(f"Failed to download raw {url} - {resp.status_code}")
+            raise BlobDownloadError(f"Failed to download raw {url} - {resp.status_code}")
 
         data = {}
         for line in resp.content.decode("utf-8").splitlines(False):

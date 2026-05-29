@@ -5,6 +5,7 @@ import UnityPy
 
 from . import Source
 from ._index import read_textasset_bytes, loads_index
+from .exceptions import SourceIndexError
 
 
 def _obb_resource_map(filenames) -> Dict[str, str]:
@@ -58,7 +59,7 @@ class ObbSource(Source):
         env = UnityPy.load(index_blob)
 
         if "assets/buildtemp/index.bytes" not in env.container:
-            raise Exception("Invalid OBB index bundle")
+            raise SourceIndexError("Invalid OBB index bundle")
 
         self._index = loads_index(
             read_textasset_bytes(env, "assets/buildtemp/index.bytes")

@@ -6,12 +6,11 @@ from typing import List, Optional
 
 from tqdm import tqdm
 
+from pgr_assets.asset_paths import TEMP_BUNDLE_MARKER, TEXTURE_BUNDLE_MARKER
 from pgr_assets.sources import SourceSet
 from .helpers import build_source_set, BaseArgs
 
 logger = logging.getLogger("pgr-assets")
-
-AUDIO_KEY = 62855594017927612
 
 
 class State:
@@ -41,17 +40,13 @@ def process(bundle: str, state: State):
 def execute_in_pool(
     bundles: List[str], state: State, max_workers: Optional[int] = None
 ):
-    finished_bundles = list()
-
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(process, bundle, state) for bundle in bundles]
         for future in tqdm(
             concurrent.futures.as_completed(futures), total=len(futures)
         ):
             try:
-                result = future.result()
-                if result:
-                    finished_bundles.append(result)
+                future.result()
             except Exception as e:
                 logger.error(f"Failed to process bundle: {e}")
 
@@ -83,11 +78,11 @@ def bundles_cmd(args: BundlesCommand):
         bundle
         for bundle in ss.list_all_bundles()
         if args.all
-        or (args.all_temp and bundle.endswith(".ab") and "assets/temp/" in bundle)
+        or (args.all_temp and bundle.endswith(".ab") and TEMP_BUNDLE_MARKER in bundle)
         or (
             args.all_images
             and bundle.endswith(".ab")
-            and "assets/product/texture/" in bundle
+            and TEXTURE_BUNDLE_MARKER in bundle
         )
         or (args.all_audio and bundle.endswith(".acb"))
         or (args.all_video and bundle.endswith(".usm"))

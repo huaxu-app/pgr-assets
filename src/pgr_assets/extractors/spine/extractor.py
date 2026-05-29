@@ -49,6 +49,13 @@ class _XEffectScaler(Protocol):
 
 
 def _script(obj: object, _proto: type[_T]) -> _T:
+    """Reinterpret a UnityPy object as the given MonoBehaviour Protocol.
+
+    This is an *unchecked* cast and performs no runtime or static validation:
+    the Protocols only document the expected field shapes. The caller is
+    responsible for having confirmed ``m_Script.read().m_ClassName`` matches
+    before calling, otherwise attribute access will fail at runtime.
+    """
     return cast(Any, obj)
 
 
