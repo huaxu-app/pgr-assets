@@ -4,7 +4,12 @@ from typing import Union, Tuple
 from pgr_assets.versions import PATCH_KEY_SCHEME_MIN_VERSION, parse_version
 
 from . import PatchCdn, PatchCdnSource, ObbSource, PcStarterSource, PcStarterCdn, Source
-from .exceptions import BlobNotFoundException, SourceError, UnknownSourceError
+from .exceptions import (
+    BlobDownloadError,
+    BlobNotFoundException,
+    SourceError,
+    UnknownSourceError,
+)
 from .xbuildconfig import extract_build_key
 
 logger = logging.getLogger("sourceset")
@@ -111,12 +116,23 @@ class SourceSet:
         logger.debug(f"Bundle {bundle} -> blob {blob}")
 
         # Then find the first source that has the blob
+        found_in_source = False
+        last_error: Exception | None = None
         for source in self.sources:
             if source.has_blob(blob):
+                found_in_source = True
                 logger.debug(f"Downloading blob {blob} from {source}")
                 try:
                     return source.get_blob(blob)
                 except Exception as e:
+                    last_error = e
                     logger.error(f"Failed to get blob {blob} from {source}: {e}")
 
+        # Distinguish "hosted somewhere but every download failed" from "no source
+        # hosts it at all" so callers (and logs) can tell a network/CDN problem
+        # apart from a genuinely missing blob.
+        if found_in_source:
+            raise BlobDownloadError(
+                f"Blob {blob} is hosted but could not be downloaded from any source"
+            ) from last_error
         raise BlobNotFoundException(f"Failed to resolve blob {blob}")

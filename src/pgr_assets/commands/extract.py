@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from pgr_assets import extractors
 from pgr_assets.audio import ACB, CueRegistry
-from pgr_assets.sources import SourceSet
+from pgr_assets.sources import SourceError, SourceSet
 from pgr_assets.sources.sourceset import BlobNotFoundException
 
 from ..extractors.video_encoders import BaseVideoEncoder, HlsEncoder, WebMp4Encoder
@@ -101,8 +101,10 @@ def process_audio(bundle: str, state: State):
         acb_data = state.sources.find_bundle(bundle)
         try:
             awb_data = state.sources.find_bundle(bundle.replace(".acb", ".awb"))
-        except BlobNotFoundException:
-            pass  # no separate AWB; the ACB may carry its waveforms inline
+        except SourceError:
+            # AWB is optional (the ACB may carry its waveforms inline) and its
+            # absence or an unreachable CDN shouldn't fail the ACB.
+            pass
 
     acb = ACB(acb_data, awb_data)
     logger.debug(f"Extracting {acb_file}")
@@ -250,7 +252,6 @@ def report_results(ok_count: int, fail_count: int):
 
 
 def extract_cmd(args: ExtractCommand):
-    args.process_args()
     resolved = build_source_set(args)
     ss = resolved.sources
 

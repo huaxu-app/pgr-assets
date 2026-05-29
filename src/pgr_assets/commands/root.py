@@ -22,5 +22,8 @@ class Args(Tap):
         self.add_subparser("bundles", BundlesCommand, help="Download bundles")
 
     def process_args(self):
+        # Tap calls this automatically at the end of parse_args(), so --log_level
+        # is applied for every subcommand; individual *_cmd functions must not
+        # need to re-invoke it.
         if self.log_level:
             logging.getLogger().setLevel(self.log_level.upper())

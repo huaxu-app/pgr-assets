@@ -1,8 +1,7 @@
 import UnityPy
 
 from pgr_assets import extractors
-from pgr_assets.sources import SourceSet
-from pgr_assets.sources.sourceset import BlobNotFoundException
+from pgr_assets.sources import SourceError, SourceSet
 
 
 class CueSheet:
@@ -21,7 +20,9 @@ def get_cue_references(sources: SourceSet, game_version: tuple[int, int]):
     try:
         env = UnityPy.load(sources.find_bundle("assets/temp/bytes/share/audio.ab"))
         source = "share"
-    except BlobNotFoundException:
+    except SourceError:
+        # Servers host the cue sheet under either share/ or client/; fall back to
+        # client/ if share/ is absent or unreachable.
         env = UnityPy.load(sources.find_bundle("assets/temp/bytes/client/audio.ab"))
         source = "client"
     sheet = extractors.get_text_asset(
