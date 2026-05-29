@@ -264,20 +264,7 @@ def extract_cmd(args: ExtractCommand):
         state.load_cues()
 
     # determine all tasks based on flags, use set because we don't want duplicates
-    listed_bundles = set(args.bundles)
-    listed_bundles.update(
-        bundle
-        for bundle in ss.list_all_bundles()
-        if args.all
-        or (args.all_temp and bundle.endswith(".ab") and TEMP_BUNDLE_MARKER in bundle)
-        or (
-            args.all_images
-            and bundle.endswith(".ab")
-            and TEXTURE_BUNDLE_MARKER in bundle
-        )
-        or (args.all_audio and bundle.endswith(".acb"))
-        or (args.all_video and bundle.endswith(".usm"))
-    )
+    listed_bundles = args.selected_bundles(ss)
 
     if len(listed_bundles) == 0:
         logger.error("No bundles specified")

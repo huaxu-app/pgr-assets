@@ -1,14 +1,15 @@
 import json
 import logging
 import os
+from typing import Any, Optional, Protocol, TypeVar, cast
 
 from UnityPy import classes
 from UnityPy.enums import ClassIDType
-from typing import Any, Optional, Protocol, TypeVar, cast
 
-from .quirks import apply_quirk
-from .models import Spine, BoneFollower, SpineInfo
 from pgr_assets.converters.unity_to_json import jsonify
+
+from .models import BoneFollower, Spine, SpineInfo
+from .quirks import apply_quirk
 
 logger = logging.getLogger("spine-extractor")
 
@@ -80,90 +81,60 @@ def texture_from_material(mat: classes.Material):
     return None
 
 
-def flatten(items):
-    for el in items:
-        if isinstance(el, (list, tuple)):
-            yield from flatten(el)
-        elif isinstance(el, dict):
-            yield from flatten(el.values())
-        else:
-            yield el
+def _record_spine_component(obj: classes.MonoBehaviour, spine: Spine) -> None:
+    class_name = obj.m_Script.read().m_ClassName
+
+    if class_name in ("SkeletonGraphic", "SkeletonAnimation"):
+        go = obj.m_GameObject.read()
+        if go.m_IsActive:
+            skeleton = handle_skeleton(_script(go, classes.GameObject))
+            if skeleton is not None:
+                spine.spines.append(skeleton)
+    elif class_name == "BoneFollowerGraphic":
+        spine.bone_followers.append(handle_bone_follower(obj))
+    elif class_name == "UiObject":
+        logger.debug("Got UiObject -> likely Movie Spine")
+        ui = _script(obj, _UiObject)
+        spine.spine_order_list = [x.path_id for x in ui.ObjList]
+        spine.found_size = (1000, 1080)
+    elif class_name == "XEffectScaler":
+        scaler = _script(obj, _XEffectScaler)
+        spine.found_size = (round(scaler.DesignWidth), round(scaler.DesignHeight))
 
 
-def crawl(obj: object, spine: Spine, seen: Optional[set] = None):
+def crawl(obj: object, spine: Spine, seen: Optional[set] = None) -> None:
     if seen is None:
         seen = set()
 
     if isinstance(obj, classes.PPtr):
         if obj.path_id == 0 and obj.file_id == 0:
-            return None
-
+            return
         if obj.path_id in seen:
-            return f"<seen {obj.path_id}>"
+            return
         seen.add(obj.path_id)
-
         try:
             obj = obj.read()
-        except AttributeError:
-            return None
-        except FileNotFoundError:
-            return None
+        except (AttributeError, FileNotFoundError):
+            return
 
     if isinstance(obj, classes.MonoBehaviour):
-        script = obj.m_Script.read()
-
-        if script.m_ClassName in ("SkeletonGraphic", "SkeletonAnimation"):
-            go = obj.m_GameObject.read()
-            if go.m_IsActive:
-                skeleton = handle_skeleton(_script(go, classes.GameObject))
-                if skeleton is not None:
-                    spine.spines.append(skeleton)
-        elif script.m_ClassName == "BoneFollowerGraphic":
-            follower = handle_bone_follower(obj)
-            spine.bone_followers.append(follower)
-        elif script.m_ClassName == "UiObject":
-            logger.debug("Got UiObject -> likely Movie Spine")
-            ui = _script(obj, _UiObject)
-            spine.spine_order_list = [x.path_id for x in ui.ObjList]
-            spine.found_size = (1000, 1080)
-        elif script.m_ClassName == "XEffectScaler":
-            scaler = _script(obj, _XEffectScaler)
-            spine.found_size = (round(scaler.DesignWidth), round(scaler.DesignHeight))
+        _record_spine_component(obj, spine)
 
     if isinstance(obj, classes.ComponentPair):
-        return {
-            "__type": type(obj).__name__,
-            "component": crawl(obj.component, spine, seen),
-        }
+        crawl(obj.component, spine, seen)
     elif isinstance(obj, classes.Object):
-        ret: dict[str, Any] = {
-            "__type": type(obj).__name__,
-        }
-        if obj.object_reader is not None:
-            ret["__path_id"] = obj.object_reader.path_id
         for k, v in obj.__dict__.items():
             if k == "m_Shader":
-                v = None
-
-            if isinstance(v, (list, tuple)):
-                v = [crawl(subv, spine, seen) for subv in flatten(v)]
-            elif isinstance(v, dict):
-                v = {subk: crawl(subv, spine, seen) for subk, subv in v.items()}
-
-            ret[k] = crawl(v, spine, seen)
-        return ret
-
-    elif isinstance(obj, classes.Vector2f):
-        return [obj.x, obj.y]
-    elif isinstance(obj, classes.Vector3f):
-        return [obj.x, obj.y, obj.z]
-    elif isinstance(obj, classes.Vector4f):
-        return [obj.x, obj.y, obj.z, obj.w]
-    elif isinstance(obj, classes.Quaternionf):
-        return [obj.x, obj.y, obj.z, obj.w]
-    elif isinstance(obj, classes.ColorRGBA):
-        return "rgba(%d, %d, %d, %d)" % (obj.r, obj.g, obj.b, obj.a)
-    return obj
+                continue  # don't descend into shader graphs
+            crawl(v, spine, seen)
+    elif isinstance(obj, (list, tuple)):
+        for item in obj:
+            crawl(item, spine, seen)
+    elif isinstance(obj, dict):
+        for item in obj.values():
+            crawl(item, spine, seen)
+    # Everything else (scalars, Vector*/Quaternionf/ColorRGBA, strings) is a
+    # leaf with nothing to traverse.
 
 
 def handle_skeleton(skeleton_object: classes.GameObject):
