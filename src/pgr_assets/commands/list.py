@@ -9,6 +9,7 @@ class ListCommand(BaseArgs):
     patterns: List[str]  # case-insensitive substring filters, AND-combined
 
     def configure(self) -> None:
+        super().configure()
         self.add_argument(
             "patterns",
             nargs="*",

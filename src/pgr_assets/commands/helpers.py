@@ -1,3 +1,4 @@
+import argparse
 from dataclasses import dataclass
 from typing import Iterable, List, Literal, Optional, Sequence, Set
 
@@ -54,6 +55,15 @@ class BaseArgs(Tap):
 
     decrypt_key: Optional[str] = None  # Decryption key to use for asset bundles
 
+    def configure(self) -> None:
+        # Accept --log_level after the subcommand too; SUPPRESS stops the subparser
+        # default from clobbering a value given before the subcommand.
+        self.add_argument(
+            "--log_level",
+            default=argparse.SUPPRESS,
+            help="Set log verbosity (e.g. debug, info, warning)",
+        )
+
 
 class BundleCommandArgs(BaseArgs):
     """Shared flags and selection logic for commands that operate on a chosen
@@ -70,6 +80,7 @@ class BundleCommandArgs(BaseArgs):
     bundles: List[str]  # Bundles to extract
 
     def configure(self) -> None:
+        super().configure()
         self.add_argument("bundles", nargs="*", help="Bundles to extract")
 
 

@@ -60,6 +60,7 @@ class SpinesCommand(BaseArgs):
     with_json: bool = False
 
     def configure(self) -> None:
+        super().configure()
         self.set_defaults(func=spines_cmd)
 
 

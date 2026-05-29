@@ -71,5 +71,33 @@ class SelectedBundlesFilterTest(unittest.TestCase):
         self.assertEqual(everything, selected_bundles(self._args(["--all"]), ss))
 
 
+class LogLevelPositionTest(unittest.TestCase):
+    """--log_level must be accepted both before and after the subcommand token, on
+    every subcommand."""
+
+    def _level(self, argv):
+        return cast(Args, Args().parse_args(argv)).log_level
+
+    def test_after_subcommand(self):
+        self.assertEqual(
+            "debug", self._level(["extract", "--output", "/tmp/o", "--log_level", "debug"])
+        )
+
+    def test_before_subcommand_not_clobbered(self):
+        # The subparser's SUPPRESS default must not overwrite the value parsed before
+        # the subcommand.
+        self.assertEqual(
+            "debug", self._level(["--log_level", "debug", "extract", "--output", "/tmp/o"])
+        )
+
+    def test_absent_defaults_to_none(self):
+        self.assertIsNone(self._level(["extract", "--output", "/tmp/o"]))
+
+    def test_after_subcommand_on_list_and_spines(self):
+        for cmd in (["list", "--log_level", "warning"],
+                    ["spines", "--output", "/tmp/o", "--log_level", "warning"]):
+            self.assertEqual("warning", self._level(cmd))
+
+
 if __name__ == "__main__":
     unittest.main()
