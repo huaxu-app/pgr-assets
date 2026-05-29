@@ -59,11 +59,11 @@ class SelectedBundlesFilterTest(unittest.TestCase):
 
     def test_all_audio_filters_acb(self):
         ss = FakeSourceSet({"a.acb", "b.ab", "c.usm"})
-        self.assertEqual({"a.acb"}, selected_bundles(self._args(["--all_audio"]), ss))
+        self.assertEqual({"a.acb"}, selected_bundles(self._args(["--all-audio"]), ss))
 
     def test_all_video_filters_usm(self):
         ss = FakeSourceSet({"a.acb", "b.ab", "c.usm"})
-        self.assertEqual({"c.usm"}, selected_bundles(self._args(["--all_video"]), ss))
+        self.assertEqual({"c.usm"}, selected_bundles(self._args(["--all-video"]), ss))
 
     def test_all_selects_everything(self):
         everything = {"a.acb", "b.ab", "c.usm"}
@@ -80,22 +80,22 @@ class LogLevelPositionTest(unittest.TestCase):
 
     def test_after_subcommand(self):
         self.assertEqual(
-            "debug", self._level(["extract", "--output", "/tmp/o", "--log_level", "debug"])
+            "debug", self._level(["extract", "--output", "/tmp/o", "--log-level", "debug"])
         )
 
     def test_before_subcommand_not_clobbered(self):
         # The subparser's SUPPRESS default must not overwrite the value parsed before
         # the subcommand.
         self.assertEqual(
-            "debug", self._level(["--log_level", "debug", "extract", "--output", "/tmp/o"])
+            "debug", self._level(["--log-level", "debug", "extract", "--output", "/tmp/o"])
         )
 
     def test_absent_defaults_to_none(self):
         self.assertIsNone(self._level(["extract", "--output", "/tmp/o"]))
 
     def test_after_subcommand_on_list_and_spines(self):
-        for cmd in (["list", "--log_level", "warning"],
-                    ["spines", "--output", "/tmp/o", "--log_level", "warning"]):
+        for cmd in (["list", "--log-level", "warning"],
+                    ["spines", "--output", "/tmp/o", "--log-level", "warning"]):
             self.assertEqual("warning", self._level(cmd))
 
 

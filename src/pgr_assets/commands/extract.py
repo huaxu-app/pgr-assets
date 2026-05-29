@@ -31,7 +31,7 @@ class ExtractCommand(BundleCommandArgs):
         False  # Generate HTTP Live Streaming variants for videos on top of mp4's
     )
 
-    cache: str = ""  # Path to sha1 cache file
+    cache: Optional[str] = None  # Path to sha1 cache file
     write_settings: bool = False  # Write a small settings file to the output directory containing preset and version
 
     workers: int = 0  # Number of parallel workers for non-video bundles (0 = CPU count)
@@ -185,7 +185,7 @@ def write_sha1_cache(file: str, entries: dict):
 def execute_in_pool(
     bundles: List[str],
     state: State,
-    cache: str,
+    cache: Optional[str],
     use_processes: bool,
     max_workers: Optional[int] = None,
     checkpoint_step: int = 100,
