@@ -1,4 +1,5 @@
 .direnv/
+.venv/
 .git/
 __pycache__/
 .idea/
