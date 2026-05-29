@@ -52,7 +52,7 @@ class State:
     game_version: tuple[int, int]
     video_encoders: list[BaseVideoEncoder]
 
-    def __init__(self, sources: SourceSet, args: ExtractCommand):
+    def __init__(self, sources: SourceSet, args: ExtractCommand, decrypt_key: str):
         version = sources.version()
         assert version is not None, "source version could not be determined"
         self.game_version = (version[0], version[1])
@@ -60,8 +60,7 @@ class State:
         self.sources = sources
         self.cues = CueRegistry(self.game_version)
         self.output_dir = args.output
-        assert args.decrypt_key is not None
-        self.decrypt_key = args.decrypt_key
+        self.decrypt_key = decrypt_key
         self.convert_binary_tables = args.convert_binary_tables
         self.encode_mp3 = not args.raw_audio
 
@@ -252,9 +251,10 @@ def report_results(ok_count: int, fail_count: int):
 
 def extract_cmd(args: ExtractCommand):
     args.process_args()
-    ss = build_source_set(args)
+    resolved = build_source_set(args)
+    ss = resolved.sources
 
-    state = State(ss, args)
+    state = State(ss, args, resolved.decrypt_key)
 
     if (
         any(bundle.endswith(".acb") for bundle in args.bundles)

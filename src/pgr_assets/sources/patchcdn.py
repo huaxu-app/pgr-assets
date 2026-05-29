@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 
 import UnityPy
 
+from pgr_assets.versions import PATCH_KEY_SCHEME_MIN_VERSION, parse_version
+
 from . import Source
 from ._index import read_textasset_bytes, loads_index
 from .exceptions import BlobDownloadError, SourceIndexError
@@ -37,7 +39,7 @@ class PatchCdnData:
             "client/config",
         ]
 
-        if self.key and tuple(int(x) for x in version.split(".")) >= (4, 3, 0):
+        if self.key and parse_version(version) >= PATCH_KEY_SCHEME_MIN_VERSION:
             path += [self.key]
 
         path += [
@@ -55,10 +57,7 @@ class PatchCdnData:
             "client/patch",
         ]
 
-        application_version_tuple = tuple(
-            int(x) for x in application_version.split(".")
-        )
-        if self.key and application_version_tuple >= (4, 3, 0):
+        if self.key and parse_version(application_version) >= PATCH_KEY_SCHEME_MIN_VERSION:
             path += [self.key]
 
         path += [
@@ -242,7 +241,7 @@ class PatchCdnSource(Source):
         return index
 
     def version(self) -> Union[Tuple[int, ...], None]:
-        return tuple(int(s) for s in self._version.split("."))
+        return parse_version(self._version)
 
     def bundle_names(self) -> Iterable[str]:
         return self.index().keys()

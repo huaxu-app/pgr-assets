@@ -62,7 +62,7 @@ class BundlesCommand(BundleCommandArgs):
 
 def bundles_cmd(args: BundlesCommand):
     args.process_args()
-    ss = build_source_set(args)
+    ss = build_source_set(args).sources
 
     state = State(ss, args.output)
 

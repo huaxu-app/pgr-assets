@@ -1,6 +1,8 @@
 import logging
 from typing import Union, Tuple
 
+from pgr_assets.versions import PATCH_KEY_SCHEME_MIN_VERSION, parse_version
+
 from . import PatchCdn, PatchCdnSource, ObbSource, PcStarterSource, PcStarterCdn, Source
 from .exceptions import BlobNotFoundException, SourceError, UnknownSourceError
 from .xbuildconfig import extract_build_key
@@ -47,7 +49,7 @@ class SourceSet:
             )
 
         key = None
-        if tuple(int(x) for x in version.split(".")) >= (4, 3, 0):
+        if parse_version(version) >= PATCH_KEY_SCHEME_MIN_VERSION:
             key = extract_build_key(self._resources_assets_bytes())
             logger.debug("Extracted patch key from resources.assets")
 

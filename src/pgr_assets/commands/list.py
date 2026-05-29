@@ -7,7 +7,7 @@ class ListCommand(BaseArgs):
 
 
 def list_cmd(args: ListCommand):
-    ss = build_source_set(args)
+    ss = build_source_set(args).sources
 
     for bundle in ss.list_all_bundles():
         print(bundle)

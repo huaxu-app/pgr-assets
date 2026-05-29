@@ -3,6 +3,8 @@ from typing import Union, Tuple
 
 import UnityPy
 
+from pgr_assets.versions import parse_version
+
 from . import Source
 from ._index import read_textasset_bytes, loads_index
 from .exceptions import BlobDownloadError, SourceIndexError
@@ -107,9 +109,7 @@ class PcStarterSource(Source):
         return resp.content
 
     def version(self) -> Union[Tuple[int, ...], None]:
-        return tuple(
-            int(s) for s in self.cdn_index()[self._section]["version"].split(".")
-        )
+        return parse_version(self.cdn_index()[self._section]["version"])
 
     def base_path(self):
         url = self.cdn_index()[self._section]["resourcesBasePath"]

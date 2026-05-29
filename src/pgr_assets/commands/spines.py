@@ -65,7 +65,7 @@ class SpinesCommand(BaseArgs):
 
 def spines_cmd(args: SpinesCommand):
     args.process_args()
-    sources = build_source_set(args)
+    sources = build_source_set(args).sources
 
     download_env(args.env_dir, sources)
     env = UnityPy.Environment(args.env_dir)

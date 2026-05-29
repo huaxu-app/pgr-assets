@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import List, Literal, Optional, Set
 
 import UnityPy
@@ -5,8 +6,8 @@ from tap import Tap
 
 from pgr_assets.asset_paths import TEMP_BUNDLE_MARKER, TEXTURE_BUNDLE_MARKER
 from pgr_assets.sources import SourceSet
+from pgr_assets.versions import parse_version
 
-VERSION_BAD_ENCRYPT = (3, 4, 0)
 DECRYPTION_KEYS = [
     ((3, 4, 0), "XxecodrPeGaka2e6"),
     ((1, 22, 0), "y5XPvqLOrCokWRIa"),
@@ -98,47 +99,62 @@ def determine_decryption_key(version: tuple[int, ...]) -> str:
     return ""
 
 
-def build_source_set(args: BaseArgs) -> SourceSet:
-    primary = args.primary
-    if args.preset is not None:
-        primary = PRESETS[args.preset]
+@dataclass
+class ResolvedSources:
+    """Outcome of :func:`build_source_set`: the configured source set plus the
+    resolved game version and the asset-bundle decryption key that was applied."""
 
-    patch = args.patch
-    if args.preset is not None:
-        patch = PRESETS[args.preset]
+    sources: SourceSet
+    version: tuple[int, ...]
+    decrypt_key: str
 
+
+def _apply_decrypt_key(version: tuple[int, ...], override: Optional[str]) -> str:
+    """Pick the decryption key (an explicit override wins, otherwise it's derived
+    from the version) and apply it to UnityPy's process-global state. Returns the
+    key so worker processes that need to re-apply it can be handed the value."""
+    key = override if override is not None else determine_decryption_key(version)
+    UnityPy.set_assetbundle_decrypt_key(key)
+    return key
+
+
+def build_source_set(args: BaseArgs) -> ResolvedSources:
+    primary = PRESETS[args.preset] if args.preset is not None else args.primary
+    patch = PRESETS[args.preset] if args.preset is not None else args.patch
+
+    if primary is None:
+        raise ValueError("No primary source specified (use --preset or --primary)")
     if args.obb is not None and args.version is None:
         raise ValueError(
             "Version must be specified when using an obb file as the primary source"
         )
 
-    version = None
-    # Preliminary version hacks for OBB based extraction
-    if args.version is not None and args.decrypt_key is None:
-        version = tuple([int(x) for x in args.version.split(".")])
-        args.decrypt_key = determine_decryption_key(version)
-        UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
-
     source_set = SourceSet()
-    if primary is None:
-        raise ValueError("No primary source specified (use --preset or --primary)")
+
+    # When the version is known up front (always so for OBB), resolve and apply
+    # the decrypt key *before* add_primary, since reading an OBB index bundle
+    # needs it. Otherwise the version is inferred from the primary source below.
+    explicit_version = parse_version(args.version) if args.version is not None else None
+    decrypt_key: Optional[str] = None
+    if explicit_version is not None:
+        decrypt_key = _apply_decrypt_key(explicit_version, args.decrypt_key)
+
     source_set.add_primary(primary, args.obb, args.prerelease)
 
-    # Primary source (non OBB, but defended against above) has a JSON-only route to a version number.
-    # Use this to determine key
-    if args.version is None and args.decrypt_key is None:
+    version = explicit_version
+    if version is None:
         inferred = source_set.version()
-        assert inferred is not None
+        assert inferred is not None, "could not determine version from primary source"
         version = inferred[:3]
-        args.decrypt_key = determine_decryption_key(version)
-        UnityPy.set_assetbundle_decrypt_key(args.decrypt_key)
+    if decrypt_key is None:
+        decrypt_key = _apply_decrypt_key(version, args.decrypt_key)
 
     if patch is not None:
         source_set.add_patch(patch, args.version)
 
-    if args.decrypt_key is None:
+    if not decrypt_key:
         raise RuntimeError(
             "No decryption key was able to be determined. Specify manually!"
         )
 
-    return source_set
+    return ResolvedSources(source_set, version, decrypt_key)
