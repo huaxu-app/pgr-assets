@@ -1,6 +1,6 @@
 [project]
 name = "pgr-assets"
-version = "3.0.1"
+version = "3.0.2"
 description = "Huaxu asset retriever for Punishing: Gray Raven"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -11,9 +11,9 @@ dependencies = [
     "pycricodecs @ git+https://github.com/BlackNovaTech/PyCriCodecs",
     "pycryptodome>=3.23.0",
     "python-ffmpeg>=2.0.12",
-    "requests>=2.33.1",
-    "tqdm>=4.67.1",
-    "typed-argument-parser>=1.11.0",
+    "requests>=2.34.2",
+    "tqdm>=4.67.3",
+    "typed-argument-parser>=1.12.0",
     "unitypy>=1.25.0",
 ]
 
