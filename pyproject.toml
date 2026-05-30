@@ -1,6 +1,6 @@
 [project]
 name = "pgr-assets"
-version = "3.0.0"
+version = "3.0.1"
 description = "Huaxu asset retriever for Punishing: Gray Raven"
 readme = "README.md"
 requires-python = ">=3.13"
