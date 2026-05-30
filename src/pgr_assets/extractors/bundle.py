@@ -85,7 +85,7 @@ def save_image(img: Image.Image, dest: str):
     img.save(dest + ".png")
     img.save(dest + ".webp", lossless=False, quality=80)
 
-    if ROLECHARACTER_IMAGE_MARKER in dest:
+    if ROLECHARACTER_IMAGE_MARKER in dest.replace(os.sep, "/"):
         thumb = img.copy()
         thumb.thumbnail((256, 256))
         thumb.save(dest + ".256.webp", lossless=False, quality=80)
