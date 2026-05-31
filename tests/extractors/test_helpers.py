@@ -1,17 +1,37 @@
+import struct
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from pgr_assets.converters.binarytable.exceptions import BinaryTableError
+from pgr_assets.extractors import bundle
 from pgr_assets.extractors.helpers import (
-    convert_to_csv,
     decrypt,
     is_utf8,
     rewrite_text_asset,
+    try_convert_to_csv,
 )
 
 BINARYTABLE_FIXTURES = (
     Path(__file__).parent.parent / "converters" / "binarytable" / "fixtures"
 )
+
+
+def _nameless_table_bytes() -> bytes:
+    """A binary table with one column whose name is empty and zero rows -- this is
+    how binary blobs (navmesh, colliders, path areas) parse through the lenient
+    parser. Layout is the pre-3.3 format used by the areastage fixture."""
+    info = bytes(
+        [
+            0x01,  # column count = 1
+            0x01,  # column 0 type = 1 (bool)
+            0x00,  # column 0 name = "" (null terminator only)
+            0x00,  # has_primary_key = 0
+            0x00,  # row trunk length = 0
+            0x00,  # row count = 0
+            0x00,  # content trunk length = 0
+        ]
+    )
+    return struct.pack("<i", len(info)) + info
 
 
 class IsUtf8Test(unittest.TestCase):
@@ -51,15 +71,19 @@ class DecryptTest(unittest.TestCase):
         self.assertEqual(data[10:], bytes(out[10:]))
 
 
-class ConvertToCsvTest(unittest.TestCase):
+class TryConvertToCsvTest(unittest.TestCase):
     def test_valid_table_round_trips(self):
         raw = (BINARYTABLE_FIXTURES / "areastage.tab.bytes").read_bytes()
-        csv = convert_to_csv(raw, (3, 0))
+        csv = try_convert_to_csv(raw, (3, 0))
+        assert csv is not None
         self.assertIn(b"Id", csv)
 
-    def test_malformed_raises_binarytable_error(self):
-        with self.assertRaises(BinaryTableError):
-            convert_to_csv(b"not a valid binary table at all", (3, 0))
+    def test_unparseable_returns_none(self):
+        self.assertIsNone(try_convert_to_csv(b"not a valid binary table at all", (3, 0)))
+
+    def test_nameless_blob_returns_none(self):
+        # Parses, but columns are nameless -- a binary blob, not a real table.
+        self.assertIsNone(try_convert_to_csv(_nameless_table_bytes(), (3, 0)))
 
 
 class RewriteTextAssetTest(unittest.TestCase):
@@ -108,6 +132,71 @@ class RewriteTextAssetTest(unittest.TestCase):
         )
         self.assertEqual("assets/temp/bytes/share/areastage.csv", path)
         self.assertIn(b"Id", bytes(out))
+
+    def test_converts_plain_bytes_table(self):
+        raw = (BINARYTABLE_FIXTURES / "areastage.tab.bytes").read_bytes()
+        path, out = rewrite_text_asset(
+            "assets/temp/bytes/share/fight/npc/areastage.bytes",
+            raw,
+            (3, 0),
+            allow_binary_table_convert=True,
+        )
+        self.assertEqual("assets/temp/bytes/share/fight/npc/areastage.csv", path)
+        self.assertIn(b"Id", bytes(out))
+
+    def test_skips_nameless_blob_under_temp_marker(self):
+        blob = _nameless_table_bytes()
+        path, out = rewrite_text_asset(
+            "assets/temp/bytes/share/fight/map/info/scene/patharea.tab.bytes",
+            blob,
+            (3, 0),
+            allow_binary_table_convert=True,
+        )
+        self.assertEqual(
+            "assets/temp/bytes/share/fight/map/info/scene/patharea.tab", path
+        )
+        self.assertEqual(blob, bytes(out))
+
+    def test_does_not_convert_when_flag_disabled(self):
+        raw = (BINARYTABLE_FIXTURES / "areastage.tab.bytes").read_bytes()
+        path, out = rewrite_text_asset(
+            "assets/temp/bytes/share/areastage.tab.bytes",
+            raw,
+            (3, 0),
+            allow_binary_table_convert=False,
+        )
+        self.assertEqual("assets/temp/bytes/share/areastage.tab", path)
+        self.assertEqual(raw, bytes(out))
+
+    def test_converts_table_with_windows_separators(self):
+        # On Windows the dest path uses backslashes; the forward-slash temp marker
+        # must still match so binary tables are converted there too.
+        raw = (BINARYTABLE_FIXTURES / "areastage.tab.bytes").read_bytes()
+        win_path = "out\\assets\\temp\\bytes\\share\\areastage.tab.bytes"
+        with mock.patch("pgr_assets.extractors.helpers.os.sep", "\\"):
+            path, out = rewrite_text_asset(
+                win_path, raw, (3, 0), allow_binary_table_convert=True
+            )
+        self.assertTrue(path.endswith("areastage.csv"))
+        self.assertIn(b"Id", bytes(out))
+
+
+class SaveImageThumbnailTest(unittest.TestCase):
+    def test_rolecharacter_thumbnail_with_windows_separators(self):
+        from PIL import Image
+
+        img = Image.new("RGB", (512, 512))
+        win_dest = "out\\assets\\product\\texture\\image\\rolecharacter\\r2\\foo.png"
+        saved = []
+        with (
+            mock.patch("pgr_assets.extractors.bundle.os.sep", "\\"),
+            mock.patch.object(Image.Image, "save", lambda self, p, **kw: saved.append(p)),
+            mock.patch.object(Image.Image, "copy", lambda self: self),
+            mock.patch.object(Image.Image, "thumbnail", lambda self, size: None),
+        ):
+            bundle.save_image(img, win_dest)
+        # The marker-gated 256px thumbnail must be written despite backslashes.
+        self.assertTrue(any(p.endswith(".256.webp") for p in saved))
 
 
 if __name__ == "__main__":

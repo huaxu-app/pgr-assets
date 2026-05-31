@@ -322,8 +322,9 @@ def extract_spine(
         logger.debug(f"Processed {name} but no spines found")
 
     if write_json and last_obj is not None:
-        os.makedirs(f"{output_dir}/{name}", exist_ok=True)
-        with open(f"{output_dir}/{name}/jsonified.json", "w") as f:
+        json_dir = os.path.join(output_dir, name)
+        os.makedirs(json_dir, exist_ok=True)
+        with open(os.path.join(json_dir, "jsonified.json"), "w") as f:
             json.dump(
                 jsonify(last_obj),
                 f,

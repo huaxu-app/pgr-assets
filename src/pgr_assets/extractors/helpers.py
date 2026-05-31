@@ -59,14 +59,42 @@ def is_utf8(data: bytes | bytearray) -> bool:
         return False
 
 
-def convert_to_csv(data: bytes | bytearray, game_version: tuple[int, int]) -> bytearray:
-    output = io.StringIO(newline="")
+def _looks_like_binary_table(table: BinaryTable) -> bool:
+    # The parser is lenient: binary blobs under /temp/bytes/ (navmesh, colliders,
+    # path areas) "parse" into nameless, column-less junk instead of raising. Real
+    # tables always have columns whose names are stable ASCII identifiers across
+    # versions, so requiring printable-ASCII names rejects the blobs.
+    return bool(table.columns) and all(
+        column.name and column.name.isascii() and column.name.isprintable()
+        for column in table.columns
+    )
+
+
+def try_convert_to_csv(
+    data: bytes | bytearray, game_version: tuple[int, int]
+) -> bytearray | None:
+    """Convert a binary-table payload to CSV, or return None if it isn't one."""
     try:
         table = BinaryTable(io.BytesIO(data), game_version)
-        table.to_csv(output)
-    except (ValueError, IndexError, struct.error) as e:
-        raise BinaryTableError(f"malformed binary table: {e}") from e
+    except (ValueError, IndexError, struct.error, BinaryTableError):
+        return None
+
+    if not _looks_like_binary_table(table):
+        return None
+
+    output = io.StringIO(newline="")
+    table.to_csv(output)
     return bytearray(output.getvalue().encode())
+
+
+def _binary_table_csv_path(path: str) -> str:
+    # Tables come as both foo.tab.bytes and foo.bytes.
+    for suffix in (".tab.bytes", ".bytes"):
+        if path.endswith(suffix):
+            return path[: -len(suffix)] + ".csv"
+    # Rare path with no .bytes suffix (historically a directory).
+    base, _ = os.path.splitext(path)
+    return os.path.join(base, os.path.basename(base) + ".csv")
 
 
 def rewrite_text_asset(
@@ -78,16 +106,15 @@ def rewrite_text_asset(
     # None = not yet computed; reused below so a payload is decoded at most once
     # while data stays unchanged. Reset to None whenever data is replaced.
     data_is_utf8: bool | None = None
-    if TEMP_BYTES_MARKER in path:
-        if allow_binary_table_convert and path.endswith(".tab.bytes"):
-            data = convert_to_csv(data, game_version)
-            path = path.replace(".tab.bytes", ".csv")
-            if path.endswith(".bytes"):
-                # Extremely weird case where its usually a directory
-                path_without_bytes, _ = os.path.splitext(path)
-                path = os.path.join(
-                    path_without_bytes, os.path.basename(path_without_bytes) + ".csv"
-                )
+    if TEMP_BYTES_MARKER in path.replace(os.sep, "/"):
+        csv = (
+            try_convert_to_csv(data, game_version)
+            if allow_binary_table_convert
+            else None
+        )
+        if csv is not None:
+            data = csv
+            path = _binary_table_csv_path(path)
     elif len(data) > 128:
         data_is_utf8 = is_utf8(data)
         if not data_is_utf8:
