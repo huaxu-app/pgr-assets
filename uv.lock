@@ -279,13 +279,13 @@ wheels = [
 
 [[package]]
 name = "pgr-assets"
-version = "3.0.0"
+version = "3.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "lameenc" },
     { name = "msgpack" },
     { name = "pillow" },
-    { name = "pycricodecs" },
+    { name = "pycricodecsex" },
     { name = "pycryptodome" },
     { name = "python-ffmpeg" },
     { name = "requests" },
@@ -304,7 +304,7 @@ requires-dist = [
     { name = "lameenc", specifier = ">=1.8.1" },
     { name = "msgpack", specifier = ">=1.1.2" },
     { name = "pillow", specifier = ">=12.2.0" },
-    { name = "pycricodecs", git = "https://github.com/BlackNovaTech/PyCriCodecs" },
+    { name = "pycricodecsex", specifier = ">=0.0.5" },
     { name = "pycryptodome", specifier = ">=3.23.0" },
     { name = "python-ffmpeg", specifier = ">=2.0.12" },
     { name = "requests", specifier = ">=2.33.1" },
@@ -375,9 +375,19 @@ wheels = [
 ]
 
 [[package]]
-name = "pycricodecs"
-version = "0.4.11"
-source = { git = "https://github.com/BlackNovaTech/PyCriCodecs#01c70f8dad8a0a5a869ffe56d564716f65bbbc51" }
+name = "pycricodecsex"
+version = "0.0.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/5e/4f8ef6a1875398165c4e1ad716c85146c91129192caf78e9cd7ed77cdc55/pycricodecsex-0.0.5.tar.gz", hash = "sha256:031d6ecd88162d312c0fbc0a2dca2b6fcf54f802aba7c74270660001d1127af5", size = 84604, upload-time = "2025-11-05T05:23:52.523Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/40/9f/48cde9e97528760dfa0c1ae37e9bc16ea1b8005a0d46d2209ad746af2111/pycricodecsex-0.0.5-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:96f795bca565e11ff757f047d863900c5a340663d01b91e82141192a1ea960df", size = 90624, upload-time = "2025-11-05T05:23:43.712Z" },
+    { url = "https://files.pythonhosted.org/packages/4f/bd/87fdf23344de6055ac6f6823c70d205a3371eebafee7c06772870bde9447/pycricodecsex-0.0.5-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:70dbb7d8eb34eac079d33c2b732106a4eeee135482b893756c4d95260632a479", size = 188954, upload-time = "2025-11-05T05:23:45.01Z" },
+    { url = "https://files.pythonhosted.org/packages/28/2b/d4c98284a8f291e27f0113003bb255da5f7fc09c0de246e44ba834bad1a2/pycricodecsex-0.0.5-cp313-cp313-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:e0d1e15d27f488ac7636c05251fb31fa04237054dcd85ecd851760e1e5d5f278", size = 182628, upload-time = "2025-11-05T05:23:46.169Z" },
+    { url = "https://files.pythonhosted.org/packages/21/b6/20b86d11698eae4f37e2301e7462bfd6b73efb48e578779f2c7de5d48834/pycricodecsex-0.0.5-cp313-cp313-musllinux_1_2_i686.whl", hash = "sha256:ebb7e3bf1011619b475716d03351e870e318517cd185a7f374d492738004b94f", size = 1260907, upload-time = "2025-11-05T05:23:47.568Z" },
+    { url = "https://files.pythonhosted.org/packages/34/7f/5e07a37206d222cc017a6153c091fb7b16d54792d0dd1a5fba40087c6a78/pycricodecsex-0.0.5-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:5f6e75883fbfc4b25f7cdf82f137a0b1d9b48ec3a14dd7164b15742e2564a0f4", size = 1174136, upload-time = "2025-11-05T05:23:48.949Z" },
+    { url = "https://files.pythonhosted.org/packages/45/8f/619aa7b627063a9bbbafb7f1b1d6e4f4b438f147ec8c37f72a0855d6efbf/pycricodecsex-0.0.5-cp313-cp313-win32.whl", hash = "sha256:2a73edfed4a59ffd166a0ed6d053c2afd87ad59815e56aaa374679e4172ea349", size = 73145, upload-time = "2025-11-05T05:23:50.227Z" },
+    { url = "https://files.pythonhosted.org/packages/ea/bb/db1d11ab30dea170722f88bf74296dd77f30c0886dd61b0928852e1a7351/pycricodecsex-0.0.5-cp313-cp313-win_amd64.whl", hash = "sha256:f281b642590c440f2b3184479537d51cc4e549650d1c684e9b7399b0a6ce27f8", size = 81375, upload-time = "2025-11-05T05:23:51.573Z" },
+]
 
 [[package]]
 name = "pycryptodome"

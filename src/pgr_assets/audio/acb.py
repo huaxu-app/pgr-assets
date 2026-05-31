@@ -6,7 +6,10 @@ import struct
 import wave
 from typing import cast, Any, List
 
-from PyCriCodecs import UTF, AWB, UTFTypeValues, UTFType, HCA
+from PyCriCodecsEx.awb import AWB
+from PyCriCodecsEx.chunk import UTFType, UTFTypeValues
+from PyCriCodecsEx.hca import HCA
+from PyCriCodecsEx.utf import UTF
 
 logger = logging.getLogger("audio.acb")
 
@@ -38,12 +41,14 @@ class ACB:
     awb: AWB
 
     def __init__(self, acb, awb: bytes | str = b"") -> None:
-        self.payload = UTF(acb).get_payload()
+        self.payload = UTF(acb).dictarray
         self.acb_parse(self.payload)
+        # AWB is typed str | BinaryIO but actually wants raw bytes (it does
+        # BytesIO(stream) internally), so pass bytes through, not a stream.
         if awb:
-            self.awb = AWB(awb)
+            self.awb = AWB(cast(Any, awb))
         else:
-            self.awb = AWB(self.payload[0]["AwbFile"][1])
+            self.awb = AWB(cast(Any, self.payload[0]["AwbFile"][1]))
 
     def acb_parse(self, payload: list) -> None:
         """Recursively parse the payload."""
@@ -55,7 +60,7 @@ class ACB:
                     ].startswith(
                         UTFType.UTF.value
                     ):  # or v[1].startswith(UTFType.EUTF.value): # ACB's never gets encrypted?
-                        par = UTF(v[1]).get_payload()
+                        par = UTF(v[1]).dictarray
                         payload[items][k] = par
                         self.acb_parse(par)
 
@@ -168,7 +173,7 @@ class ACB:
             os.makedirs(dirname, exist_ok=True)
 
         # Have to do this because the index one is broken
-        waveforms: List[Any] = list(self.awb.getfiles())
+        waveforms: List[Any] = list(self.awb.get_files())
 
         tables = self.payload[0]
 
