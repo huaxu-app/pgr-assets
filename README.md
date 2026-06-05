@@ -3,12 +3,10 @@
 
 ## Installation
 
-This package is not available on PyPI, so you will need to install it from source.
-
 ```bash
-pip install pgr_assets@git+https://github.com/huaxu-app/pgr-assets
-# or the dev version
-pip install pgr_assets@git+https://github.com/huaxu-app/pgr-assets@dev
+pip install pgr-assets
+# or run directly with uv
+uvx pgr-assets
 ```
 
 ## Commands
