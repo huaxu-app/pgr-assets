@@ -185,9 +185,18 @@ class BinaryTable:
         if pool_offset_trunk_len <= 0:
             return
 
+        # The offset trunk encoding changed in 4.5: older builds store LEB128
+        # varints, 4.5+ stores fixed-width little-endian i32. The trunk byte
+        # length tells us which - a fixed i32 array is exactly 4 bytes per entry.
+        # Reading i32 data as LEB128 desyncs the array into sparse junk and
+        # points pooled-string reads mid-character (mangled/undecodable strings).
         self.pool_offset_info_array = []
-        for _ in range(string_pool_size):
-            self.pool_offset_info_array.append(self.reader.read_int() or 0)
+        if pool_offset_trunk_len == string_pool_size * 4:
+            for _ in range(string_pool_size):
+                self.pool_offset_info_array.append(self.reader.read_i32())
+        else:
+            for _ in range(string_pool_size):
+                self.pool_offset_info_array.append(self.reader.read_int() or 0)
 
     def _is_string_pool_column(self, column_index):
         if not self.enable_string_pool:

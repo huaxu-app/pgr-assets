@@ -120,6 +120,20 @@ class TableTest(unittest.TestCase):
         row = rows[50]
         self.assertEqual(Decimal("4.15"), row[3])
 
+    def test_i32_string_pool_offsets(self):
+        # 4.5+ stores the string-pool offset trunk as fixed-width i32 instead of
+        # LEB128. Reading it as LEB128 desyncs the offsets and pooled strings come
+        # out mangled (mid-character) or undecodable. ModelId and LayerName here
+        # are both pool-backed, so correct values prove the offsets are read right.
+        with open(FIXTURES / "npcanimatorlayerinfo.i32pool.tab.bytes", "rb") as f:
+            table = BinaryTable(f, (4, 5))
+
+        self.assertTrue(table.enable_string_pool)
+        self.assertEqual(["ModelId", "LayerName"], [c.name for c in table.columns])
+        self.assertEqual(9, len(table.rows))
+        self.assertEqual("R3AilaMd010021", table.rows[0][0])
+        self.assertEqual(["BaseLayer", "LevelLayer1"], table.rows[0][1])
+
     def test_old_style_fixnum_npcsearcher(self):
         with open(FIXTURES / "npcsearcher.old.bytes", "rb") as f:
             table = BinaryTable(f, (3, 0))
