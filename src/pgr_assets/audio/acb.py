@@ -17,6 +17,10 @@ except ImportError:  # in-process encoder is optional; fall back to ffmpeg
     lameenc = None
 
 
+def _is_awb(awb: bytes) -> bool:
+    return awb[:4] == b"AFS2"
+
+
 def _encode_mp3(wav_bytes: bytes) -> bytes:
     assert lameenc is not None  # callers guard on availability
     wf = wave.open(io.BytesIO(wav_bytes), "rb")
@@ -35,17 +39,16 @@ class ACB:
 
     __slots__ = ["payload", "awb"]
     payload: list
-    awb: AWB
+    awb: AWB | None
 
-    def __init__(self, acb, awb: bytes | str = b"") -> None:
+    def __init__(self, acb, awb: bytes = b"") -> None:
         self.payload = UTF(acb).dictarray
         self.acb_parse(self.payload)
-        # AWB is typed str | BinaryIO but actually wants raw bytes (it does
+        # AWB is typed BinaryIO but actually wants raw bytes (it does
         # BytesIO(stream) internally), so pass bytes through, not a stream.
-        if awb:
-            self.awb = AWB(cast(Any, awb))
-        else:
-            self.awb = AWB(cast(Any, self.payload[0]["AwbFile"][1]))
+        if not awb:
+            awb = self.payload[0]["AwbFile"][1]
+        self.awb = AWB(cast(Any, awb)) if _is_awb(awb) else None
 
     def acb_parse(self, payload: list) -> None:
         """Recursively parse the payload."""
@@ -166,6 +169,10 @@ class ACB:
 
     def extract(self, key: int, dirname: str = "", encode=False):
         """Extracts audio files in an AWB/ACB without preserving filenames."""
+        if self.awb is None:
+            logger.debug("ACB has no AWB; nothing to extract")
+            return
+
         if dirname:
             os.makedirs(dirname, exist_ok=True)
 
