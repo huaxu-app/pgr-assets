@@ -4,8 +4,7 @@ import os
 import tempfile
 from typing import Any, BinaryIO, Union, cast
 
-from PyCriCodecsEx.hca import HCA
-from PyCriCodecsEx.usm import USM
+from pgr_assets.cri import HCA, USM
 from pgr_assets.extractors.video_encoders import BaseVideoEncoder, Track
 
 logger = logging.getLogger(__name__)

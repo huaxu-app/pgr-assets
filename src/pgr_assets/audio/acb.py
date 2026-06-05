@@ -1,4 +1,4 @@
-# Heavily modified PyCriCodecs.ACBj
+# Heavily modified PyCriCodecs.ACB
 import io
 import logging
 import os
@@ -6,10 +6,7 @@ import struct
 import wave
 from typing import cast, Any, List
 
-from PyCriCodecsEx.awb import AWB
-from PyCriCodecsEx.chunk import UTFType, UTFTypeValues
-from PyCriCodecsEx.hca import HCA
-from PyCriCodecsEx.utf import UTF
+from pgr_assets.cri import AWB, HCA, UTF, UTFType, UTFTypeValues
 
 logger = logging.getLogger("audio.acb")
 
