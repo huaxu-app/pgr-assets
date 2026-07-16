@@ -4,6 +4,7 @@ import logging
 import os
 
 import UnityPy
+from UnityPy.enums import ClassIDType
 from tqdm.auto import tqdm
 
 from pgr_assets.asset_paths import SPINE_BUNDLE_MARKER, SPINE_PREFAB_PREFIX
@@ -70,7 +71,11 @@ def spines_cmd(args: SpinesCommand):
     download_env(args.env_dir, sources)
     env = UnityPy.Environment(args.env_dir)
 
-    all_prefabs = {k: v for k, v in env.container.items() if k.endswith(".prefab")}
+    all_prefabs = {
+        k: v
+        for k, v in env.container.items()
+        if k.endswith(".prefab") and v.type == ClassIDType.GameObject
+    }
     if args.only_login:
         login_prefab = SPINE_PREFAB_PREFIX + "spinelogin.prefab"
         all_prefabs = {login_prefab: all_prefabs[login_prefab]}

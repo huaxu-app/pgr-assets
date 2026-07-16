@@ -64,9 +64,7 @@ class SpineInfo:
         with open(os.path.join(output_dir, name + ".atlas"), "w") as f:
             f.write(self.atlas)
         for name, image in self.textures:
-            image.save(
-                os.path.join(output_dir, name.removeprefix(self.name + "_") + ".png")
-            )
+            image.save(os.path.join(output_dir, name + ".png"))
 
 
 @dataclass
@@ -88,7 +86,7 @@ class BoneFollower:
 class Spine:
     name: str
     spines: list[SpineInfo] = field(default_factory=list)
-    spine_order_list: list[str] | None = None
+    spine_order_list: list[int] | None = None
     found_size: Tuple[int, int] | None = None
     bone_followers: list[BoneFollower] = field(default_factory=list)
     render_quirk: str | None = None
@@ -111,7 +109,7 @@ class Spine:
             index = {x: i for i, x in enumerate(self.spine_order_list)}
             self.spines = sorted(
                 self.spines,
-                key=lambda x: min(index.get(str(p), float("inf")) for p in x.ids),
+                key=lambda x: min(index.get(p, float("inf")) for p in x.ids),
                 reverse=True,
             )
 
