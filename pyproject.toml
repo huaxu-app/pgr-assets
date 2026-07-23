@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "lameenc>=1.8.1",
     "msgpack>=1.1.2",
-    "pillow>=12.2.0",
+    "pillow>=12.3.0",
     "pycricodecsex>=0.0.5",
     "pycryptodome>=3.23.0",
     "python-ffmpeg>=2.0.12",
