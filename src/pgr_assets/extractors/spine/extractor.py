@@ -84,7 +84,7 @@ def texture_from_material(mat: classes.Material):
 def _record_spine_component(obj: classes.MonoBehaviour, spine: Spine) -> None:
     class_name = obj.m_Script.read().m_ClassName
 
-    if class_name in ("SkeletonGraphic", "SkeletonAnimation"):
+    if hasattr(obj, "skeletonDataAsset"):
         go = obj.m_GameObject.read()
         if go.m_IsActive:
             skeleton = handle_skeleton(_script(go, classes.GameObject))
@@ -171,16 +171,20 @@ def handle_skeleton(skeleton_object: classes.GameObject):
             continue
 
         script_type = obj.m_Script.read().m_ClassName
-        if script_type in ("SkeletonGraphic", "SkeletonAnimation"):
+        anim = getattr(obj, "_animationName", None) or getattr(
+            obj, "animationName", None
+        )
+        if anim:
+            spine.default_animation = anim
+
+        # Data lives on SkeletonGraphic (UI) or SkeletonRenderer (mesh).
+        if hasattr(obj, "skeletonDataAsset"):
             sk = _script(obj, _SkeletonGraphic)
             # Try get the texture from the material, this is one route, the other is through the atlas assets
             if hasattr(obj, "m_Material") and sk.m_Material.path_id != 0:
                 tex = texture_from_material(sk.m_Material.read())
                 if tex is not None:
                     spine.textures.append(tex)
-
-            if hasattr(obj, "_animationName"):
-                spine.default_animation = getattr(obj, "_animationName")
 
             skeleton_data_asset = sk.skeletonDataAsset.read()
 
