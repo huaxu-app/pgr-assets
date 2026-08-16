@@ -7,7 +7,7 @@ from PIL import Image
 from UnityPy.classes import Sprite, TextAsset, Texture2D
 from UnityPy.enums import ClassIDType
 
-from pgr_assets.asset_paths import ROLECHARACTER_IMAGE_MARKER
+from pgr_assets.asset_paths import THUMBNAIL_IMAGE_MARKERS, THUMBNAIL_SIZE
 from pgr_assets.converters.binarytable.exceptions import BinaryTableError
 
 from .helpers import rewrite_text_asset
@@ -85,7 +85,8 @@ def save_image(img: Image.Image, dest: str):
     img.save(dest + ".png")
     img.save(dest + ".webp", lossless=False, quality=80)
 
-    if ROLECHARACTER_IMAGE_MARKER in dest.replace(os.sep, "/"):
+    path = dest.replace(os.sep, "/")
+    if any(marker in path for marker in THUMBNAIL_IMAGE_MARKERS):
         thumb = img.copy()
-        thumb.thumbnail((256, 256))
-        thumb.save(dest + ".256.webp", lossless=False, quality=80)
+        thumb.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE))
+        thumb.save(f"{dest}.{THUMBNAIL_SIZE}.webp", lossless=False, quality=80)
