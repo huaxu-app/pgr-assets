@@ -78,11 +78,20 @@ def parse_xbuildconfig(raw: bytes) -> XBuildConfig:
     )
 
 
-def extract_build_key(resources_assets: bytes) -> str:
-    """Load resources.assets, locate XBuildConfig, return its patch-CDN key."""
+def extract_build_config(resources_assets: bytes) -> XBuildConfig:
+    """
+    Load resources.assets and return the parsed XBuildConfig.
+    """
     env = UnityPy.load(resources_assets)
     try:
         obj = next(o for o in env.objects if o.peek_name() == "XBuildConfig")
     except StopIteration:
         raise XBuildConfigError("XBuildConfig object not found in resources.assets")
-    return parse_xbuildconfig(obj.get_raw_data()).key
+    return parse_xbuildconfig(obj.get_raw_data())
+
+
+def extract_build_key(resources_assets: bytes) -> str:
+    """
+    Load resources.assets, locate XBuildConfig, return its patch-CDN key.
+    """
+    return extract_build_config(resources_assets).key

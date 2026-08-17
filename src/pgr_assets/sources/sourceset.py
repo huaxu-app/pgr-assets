@@ -3,7 +3,15 @@ from typing import Union, Tuple
 
 from pgr_assets.versions import PATCH_KEY_SCHEME_MIN_VERSION, parse_version
 
-from . import PatchCdn, PatchCdnSource, ObbSource, PcStarterSource, PcStarterCdn, Source
+from . import (
+    GameDirSource,
+    ObbSource,
+    PatchCdn,
+    PatchCdnSource,
+    PcStarterCdn,
+    PcStarterSource,
+    Source,
+)
 from .exceptions import (
     BlobDownloadError,
     BlobNotFoundException,
@@ -22,10 +30,19 @@ class SourceSet:
     def __init__(self):
         self.sources: list[Source] = []
 
-    def add_primary(self, primary_type: str, obb: Union[str, None], prerelease: bool):
+    def add_primary(
+        self,
+        primary_type: str,
+        obb: Union[str, None],
+        prerelease: bool,
+        game_dir: Union[str, None] = None,
+    ):
         if primary_type == "obb":
             assert obb is not None, "obb path required when primary is 'obb'"
             impl = ObbSource(obb)
+        elif primary_type == "local":
+            assert game_dir is not None, "game_dir required when primary is 'local'"
+            impl = GameDirSource(game_dir)
         elif primary_type in PcStarterCdn.__members__:
             impl = PcStarterSource(PcStarterCdn[primary_type], prerelease)
         else:

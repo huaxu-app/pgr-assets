@@ -3,7 +3,11 @@ from typing import cast
 
 from pgr_assets.commands import bundles as bundles_mod
 from pgr_assets.commands import extract as extract_mod
-from pgr_assets.commands.helpers import BundleCommandArgs, selected_bundles
+from pgr_assets.commands.helpers import (
+    BundleCommandArgs,
+    build_source_set,
+    selected_bundles,
+)
 from pgr_assets.commands.root import Args
 from pgr_assets.sources.sourceset import SourceSet
 
@@ -97,6 +101,35 @@ class LogLevelPositionTest(unittest.TestCase):
         for cmd in (["list", "--log-level", "warning"],
                     ["spines", "--output", "/tmp/o", "--log-level", "warning"]):
             self.assertEqual("warning", self._level(cmd))
+
+
+class LocalSourceFlagsTest(unittest.TestCase):
+    """
+    The local primary is flattened onto the top-level Args like every other
+    subcommand attribute, and its flag pairing is validated before any source
+    is constructed, so these cases never touch the network or the disk.
+    """
+
+    def test_flags_flatten_onto_args(self):
+        args = _parse(
+            ["bundles", "--primary", "local", "--game-dir", "/games/pgr", "--output", "/tmp/o"]
+        )
+        self.assertEqual("local", args.primary)
+        self.assertEqual("/games/pgr", getattr(args, "game_dir"))
+
+    def test_local_without_game_dir_is_rejected(self):
+        args = _parse(["bundles", "--primary", "local", "--output", "/tmp/o"])
+        with self.assertRaises(ValueError) as caught:
+            build_source_set(args)
+        self.assertIn("--game-dir", str(caught.exception))
+
+    def test_game_dir_without_local_primary_is_rejected(self):
+        args = _parse(
+            ["bundles", "--preset", "global", "--game-dir", "/games/pgr", "--output", "/tmp/o"]
+        )
+        with self.assertRaises(ValueError) as caught:
+            build_source_set(args)
+        self.assertIn("--primary local", str(caught.exception))
 
 
 if __name__ == "__main__":

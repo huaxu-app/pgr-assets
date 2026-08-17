@@ -14,7 +14,7 @@ import UnityPy
 from pgr_assets.versions import PATCH_KEY_SCHEME_MIN_VERSION, parse_version
 
 from . import Source
-from ._index import read_textasset_bytes, loads_index
+from ._index import read_textasset_bytes, loads_index, merge_index
 from .exceptions import BlobDownloadError, SourceIndexError
 from .session import get_session
 
@@ -233,14 +233,13 @@ class PatchCdnSource(Source):
         env = UnityPy.load(bundle.content)
 
         if "assets/temp/index.bytes" in env.container:
-            index = loads_index(read_textasset_bytes(env, "assets/temp/index.bytes"))[0]
-        elif "assets/buildtemp/index.bytes" in env.container:
-            partial_indices = loads_index(
-                read_textasset_bytes(env, "assets/buildtemp/index.bytes")
+            index = merge_index(
+                loads_index(read_textasset_bytes(env, "assets/temp/index.bytes"))
             )
-            index = partial_indices[0]
-            for v in partial_indices[1].values():
-                index.update(v)
+        elif "assets/buildtemp/index.bytes" in env.container:
+            index = merge_index(
+                loads_index(read_textasset_bytes(env, "assets/buildtemp/index.bytes"))
+            )
         else:
             raise SourceIndexError("Failed to find index in patch index bundle")
 
