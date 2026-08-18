@@ -11,6 +11,7 @@ from .exceptions import (
 from .pcstarter import PcStarterSource, PcStarterCdn
 from .patchcdn import PatchCdnSource, PatchCdn
 from .obbstarter import ObbSource
+from .gamedir import GameDirSource
 from .sourceset import SourceSet
 
 logger = logging.getLogger("pgr-assets.sources")
@@ -27,5 +28,6 @@ __all__ = [
     "PatchCdnSource",
     "PatchCdn",
     "ObbSource",
+    "GameDirSource",
     "SourceSet",
 ]

@@ -5,3 +5,5 @@ notebooks/assets
 notebooks/output
 __pycache__
 .idea
+/.*env/
+/*.deps.json

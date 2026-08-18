@@ -6,7 +6,7 @@ import UnityPy
 from tap import Tap
 
 from pgr_assets.asset_paths import TEMP_BUNDLE_MARKER, TEXTURE_BUNDLE_MARKER
-from pgr_assets.sources import SourceSet
+from pgr_assets.sources import SourceError, SourceSet
 from pgr_assets.versions import parse_version
 
 DECRYPTION_KEYS = [
@@ -32,9 +32,12 @@ class BaseArgs(Tap):
     prerelease: bool = False  # Use the prerelease patch source, if available
 
     primary: Optional[
-        Literal["obb", "EN_PC", "KR_PC", "JP_PC", "TW_PC", "CN_PC", "CN_PC_BETA"]
+        Literal["obb", "local", "EN_PC", "KR_PC", "JP_PC", "TW_PC", "CN_PC", "CN_PC_BETA"]
     ] = None  # Primary source to use
     obb: Optional[str] = None  # Path to obb file. Only valid when primary is set to obb
+    game_dir: Optional[str] = (
+        None  # Path to an installed game directory. Only valid when primary is 'local'
+    )
     patch: Optional[
         Literal[
             "EN",
@@ -191,6 +194,10 @@ def build_source_set(args: BaseArgs) -> ResolvedSources:
         raise ValueError(
             "Version must be specified when using an obb file as the primary source"
         )
+    if primary == "local" and args.game_dir is None:
+        raise ValueError("--game-dir is required when the primary source is 'local'")
+    if args.game_dir is not None and primary != "local":
+        raise ValueError("--game-dir is only valid together with --primary local")
 
     source_set = SourceSet()
 
@@ -202,12 +209,15 @@ def build_source_set(args: BaseArgs) -> ResolvedSources:
     if explicit_version is not None:
         decrypt_key = _apply_decrypt_key(explicit_version, args.decrypt_key)
 
-    source_set.add_primary(primary, args.obb, args.prerelease)
+    source_set.add_primary(primary, args.obb, args.prerelease, game_dir=args.game_dir)
 
     version = explicit_version
     if version is None:
         inferred = source_set.version()
-        assert inferred is not None, "could not determine version from primary source"
+        if inferred is None:
+            raise SourceError(
+                f"Could not determine the version from {primary}. Pass --version explicitly."
+            )
         version = inferred[:3]
     if decrypt_key is None:
         decrypt_key = _apply_decrypt_key(version, args.decrypt_key)

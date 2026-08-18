@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import string
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import Enum
@@ -14,11 +15,14 @@ import UnityPy
 from pgr_assets.versions import PATCH_KEY_SCHEME_MIN_VERSION, parse_version
 
 from . import Source
-from ._index import read_textasset_bytes, loads_index
+from ._index import read_textasset_bytes, loads_index, merge_index
 from .exceptions import BlobDownloadError, SourceIndexError
 from .session import get_session
 
 SIGN_ALPHABET = string.ascii_letters + string.digits
+
+# Highest patch component tried when scanning for the real document version.
+DOCUMENT_VERSION_SCAN_LIMIT = 25
 
 
 @dataclass
@@ -167,6 +171,8 @@ class PatchCdnSource(Source):
         config = self.get_tab(self._cdn.config_url(version))
         application_version = version
         document_version = config["DocumentVersion"]
+        if document_version == config["ApplicationVersion"]:
+            document_version = self._scan_document_version(application_version)
         self._cdn_url = self._cdn.base_url(application_version, document_version)
         self._logger.debug(f"Using patch cdn {self._cdn_url}")
         self._version = application_version
@@ -174,9 +180,10 @@ class PatchCdnSource(Source):
     def has_blob(self, blob: str) -> bool:
         return blob in self.resources()
 
-    def _request(self, url: str):
+    def _request(self, url: str, head: bool = False):
+        method = get_session().head if head else get_session().get
         if not self._cdn.sign:
-            return get_session().get(url)
+            return method(url)
 
         # Do the new CN Beta signature
         expiration = int((datetime.now() + timedelta(minutes=30)).timestamp())
@@ -186,7 +193,44 @@ class PatchCdnSource(Source):
         signature += hashlib.md5(
             f"{path}-{signature}{self._sign_key}".encode()
         ).hexdigest()
-        return get_session().get(url + "?sign=" + signature)
+        return method(url + "?sign=" + signature)
+
+    def _scan_document_version(self, application_version: str) -> str:
+        """Find the real document version when config.tab still carries a placeholder.
+
+        Predownload builds ship a config.tab whose DocumentVersion is still the
+        application version (and whose IndexSha1 is stale too, so it can't be used
+        to confirm a guess). Nothing else in the launcher index, resource.json or
+        XBuildConfig carries the document version, and the patch CDN has no listing
+        endpoint, so probe for the highest ``major.minor.patch`` that serves an index.
+        """
+        major, minor = parse_version(application_version)[:2]
+        candidates = [
+            f"{major}.{minor}.{patch}"
+            for patch in range(DOCUMENT_VERSION_SCAN_LIMIT + 1)
+        ]
+
+        def published(candidate: str) -> bool:
+            url = self._cdn.base_url(application_version, candidate) + "index"
+            return self._request(url, head=True).status_code == 200
+
+        with ThreadPoolExecutor(max_workers=len(candidates)) as pool:
+            hits = [
+                candidate
+                for candidate, ok in zip(candidates, pool.map(published, candidates))
+                if ok
+            ]
+
+        if hits:
+            self._logger.info(
+                f"config.tab has a placeholder DocumentVersion, using {hits[-1]}"
+            )
+            return hits[-1]
+
+        raise SourceIndexError(
+            f"config.tab for {application_version} has a placeholder DocumentVersion and no "
+            f"index was found for {major}.{minor}.0 through {major}.{minor}.{DOCUMENT_VERSION_SCAN_LIMIT}"
+        )
 
     def get_blob(self, blob: str) -> bytes:
         url = self.resources()[blob]
@@ -233,14 +277,13 @@ class PatchCdnSource(Source):
         env = UnityPy.load(bundle.content)
 
         if "assets/temp/index.bytes" in env.container:
-            index = loads_index(read_textasset_bytes(env, "assets/temp/index.bytes"))[0]
-        elif "assets/buildtemp/index.bytes" in env.container:
-            partial_indices = loads_index(
-                read_textasset_bytes(env, "assets/buildtemp/index.bytes")
+            index = merge_index(
+                loads_index(read_textasset_bytes(env, "assets/temp/index.bytes"))
             )
-            index = partial_indices[0]
-            for v in partial_indices[1].values():
-                index.update(v)
+        elif "assets/buildtemp/index.bytes" in env.container:
+            index = merge_index(
+                loads_index(read_textasset_bytes(env, "assets/buildtemp/index.bytes"))
+            )
         else:
             raise SourceIndexError("Failed to find index in patch index bundle")
 

@@ -2,8 +2,10 @@
 # (e.g. "assets/temp/bytes/share/...").
 TEMP_BYTES_MARKER = "/temp/bytes/"
 
-# role-character images, which get an extra 256px thumbnail.
-ROLECHARACTER_IMAGE_MARKER = "/image/rolecharacter/"
+# Image trees that get an extra thumbnail alongside the full-size output.
+# The trailing slash keeps "/image/rolestoryface/" out of the set.
+THUMBNAIL_IMAGE_MARKERS = ("/image/rolecharacter/", "/image/rolestory/")
+THUMBNAIL_SIZE = 256
 
 # Bundle-name markers used by the --all-temp / --all-images selection filters.
 TEMP_BUNDLE_MARKER = "assets/temp/"

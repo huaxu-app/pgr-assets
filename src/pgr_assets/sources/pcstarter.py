@@ -6,7 +6,7 @@ import UnityPy
 from pgr_assets.versions import parse_version
 
 from . import Source
-from ._index import read_textasset_bytes, loads_index
+from ._index import read_textasset_bytes, loads_index, merge_index
 from .exceptions import BlobDownloadError, SourceIndexError
 from .session import get_session
 from dataclasses import dataclass
@@ -93,7 +93,7 @@ class PcStarterSource(Source):
         if "assets/temp/index.bytes" not in env.container:
             raise SourceIndexError("Failed to find index in patch index bundle")
 
-        index = loads_index(read_textasset_bytes(env, "assets/temp/index.bytes"))[0]
+        index = merge_index(loads_index(read_textasset_bytes(env, "assets/temp/index.bytes")))
         self._matrix_index = index
         return index
 

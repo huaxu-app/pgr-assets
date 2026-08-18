@@ -4,7 +4,7 @@ from zipfile import ZipFile
 import UnityPy
 
 from . import Source
-from ._index import read_textasset_bytes, loads_index
+from ._index import read_textasset_bytes, loads_index, merge_index
 from .exceptions import SourceIndexError
 
 
@@ -61,9 +61,9 @@ class ObbSource(Source):
         if "assets/buildtemp/index.bytes" not in env.container:
             raise SourceIndexError("Invalid OBB index bundle")
 
-        self._index = loads_index(
-            read_textasset_bytes(env, "assets/buildtemp/index.bytes")
-        )[0]
+        self._index = merge_index(
+            loads_index(read_textasset_bytes(env, "assets/buildtemp/index.bytes"))
+        )
 
     def resources(self) -> Dict[str, str]:
         return self._resources
