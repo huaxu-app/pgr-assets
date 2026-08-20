@@ -7,7 +7,7 @@ from PIL import Image
 from UnityPy.classes import Sprite, TextAsset, Texture2D
 from UnityPy.enums import ClassIDType
 
-from pgr_assets.asset_paths import THUMBNAIL_IMAGE_MARKERS, THUMBNAIL_SIZE
+from pgr_assets.asset_paths import THUMBNAIL_FORCED_ASPECTS, THUMBNAIL_IMAGE_SIZES
 from pgr_assets.converters.binarytable.exceptions import BinaryTableError
 
 from .helpers import rewrite_text_asset
@@ -86,7 +86,15 @@ def save_image(img: Image.Image, dest: str):
     img.save(dest + ".webp", lossless=False, quality=80)
 
     path = dest.replace(os.sep, "/")
-    if any(marker in path for marker in THUMBNAIL_IMAGE_MARKERS):
-        thumb = img.copy()
-        thumb.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE))
-        thumb.save(f"{dest}.{THUMBNAIL_SIZE}.webp", lossless=False, quality=80)
+    for marker, size in THUMBNAIL_IMAGE_SIZES.items():
+        if marker not in path:
+            continue
+        aspect = THUMBNAIL_FORCED_ASPECTS.get(marker)
+        if aspect is None:
+            thumb = img.copy()
+            thumb.thumbnail((size, size))
+        else:
+            width = min(size, img.width)
+            thumb = img.resize((width, round(width / aspect)), Image.Resampling.LANCZOS)
+        thumb.save(f"{dest}.{size}.webp", lossless=False, quality=80)
+        break
