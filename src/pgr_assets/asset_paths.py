@@ -2,21 +2,25 @@
 # (e.g. "assets/temp/bytes/share/...").
 TEMP_BYTES_MARKER = "/temp/bytes/"
 
-# Image trees that get an extra thumbnail alongside the full-size output, mapped
-# to the size that tree is scaled to fit. The trailing slash keeps
+# Image trees that get extra thumbnails alongside the full-size output, mapped
+# to the sizes that tree is scaled to fit. The trailing slash keeps
 # "/image/rolestoryface/" out of the set. The 480 trees are landscape artwork
 # shown in dense grids, where 256 would only be 144 tall; 480 covers a ~240px
-# tile at 2x DPR.
+# tile at 2x DPR. The head-icon trees carry both sizes because they are drawn
+# both as 44px avatar clusters and as ~112px portraits. thumbnail() never
+# upscales, so the 256 of an already-small role/ icon is just a copy.
 THUMBNAIL_IMAGE_SIZES = {
-    "/image/rolecharacter/": 256,
-    "/image/rolestory/": 256,
-    "/image/bgcg/": 480,
-    "/image/bgstory/": 480,
-    "/image/bgui/": 480,
-    "/image/uiarchivestorybanner/": 480,
-    "/image/uidlcmultiplayer/": 480,
-    "/image/uipicturepuzzle/": 480,
-    "/image/bgcomiccg/": 480,
+    "/image/rolecharacter/": (256, 128),
+    "/image/roleplayer/": (256, 128),
+    "/image/role/": (256, 128),
+    "/image/rolestory/": (256,),
+    "/image/bgcg/": (480,),
+    "/image/bgstory/": (480,),
+    "/image/bgui/": (480,),
+    "/image/uiarchivestorybanner/": (480,),
+    "/image/uidlcmultiplayer/": (480,),
+    "/image/uipicturepuzzle/": (480,),
+    "/image/bgcomiccg/": (480,),
 }
 
 # Trees whose art ships as a stretched power-of-two texture: the file is

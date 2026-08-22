@@ -86,15 +86,18 @@ def save_image(img: Image.Image, dest: str):
     img.save(dest + ".webp", lossless=False, quality=80)
 
     path = dest.replace(os.sep, "/")
-    for marker, size in THUMBNAIL_IMAGE_SIZES.items():
+    for marker, sizes in THUMBNAIL_IMAGE_SIZES.items():
         if marker not in path:
             continue
         aspect = THUMBNAIL_FORCED_ASPECTS.get(marker)
-        if aspect is None:
-            thumb = img.copy()
-            thumb.thumbnail((size, size))
-        else:
-            width = min(size, img.width)
-            thumb = img.resize((width, round(width / aspect)), Image.Resampling.LANCZOS)
-        thumb.save(f"{dest}.{size}.webp", lossless=False, quality=80)
+        for size in sizes:
+            if aspect is None:
+                thumb = img.copy()
+                thumb.thumbnail((size, size))
+            else:
+                width = min(size, img.width)
+                thumb = img.resize(
+                    (width, round(width / aspect)), Image.Resampling.LANCZOS
+                )
+            thumb.save(f"{dest}.{size}.webp", lossless=False, quality=80)
         break
