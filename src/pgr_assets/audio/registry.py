@@ -1,6 +1,7 @@
 import UnityPy
 
 from pgr_assets import extractors
+from pgr_assets.audio.paths import sheet_base_name
 from pgr_assets.sources import SourceError, SourceSet
 
 
@@ -13,7 +14,7 @@ class CueSheet:
         self.id = id
         self.acb = acb
         self.awb = awb
-        self.base_name = acb.split("/", 2)[2].split(".")[0].lower()
+        self.base_name = sheet_base_name(acb)
 
 
 def get_cue_references(sources: SourceSet, game_version: tuple[int, int]):
@@ -21,8 +22,7 @@ def get_cue_references(sources: SourceSet, game_version: tuple[int, int]):
         env = UnityPy.load(sources.find_bundle("assets/temp/bytes/share/audio.ab"))
         source = "share"
     except SourceError:
-        # Servers host the cue sheet under either share/ or client/; fall back to
-        # client/ if share/ is absent or unreachable.
+        # Try client/ when the server's share/ audio bundle is unavailable.
         env = UnityPy.load(sources.find_bundle("assets/temp/bytes/client/audio.ab"))
         source = "client"
     sheet = extractors.get_text_asset(

@@ -1,7 +1,6 @@
 import io
 import os
 import struct
-from typing import Tuple
 
 from pgr_assets.asset_paths import TEMP_BYTES_MARKER
 from pgr_assets.converters.binarytable.exceptions import BinaryTableError
@@ -102,7 +101,7 @@ def rewrite_text_asset(
     data: bytes | bytearray,
     game_version: tuple[int, int],
     allow_binary_table_convert=False,
-) -> Tuple[str, bytes | bytearray]:
+) -> tuple[str, bytes | bytearray]:
     # None = not yet computed; reused below so a payload is decoded at most once
     # while data stays unchanged. Reset to None whenever data is replaced.
     data_is_utf8: bool | None = None

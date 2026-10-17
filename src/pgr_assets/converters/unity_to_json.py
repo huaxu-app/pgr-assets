@@ -22,9 +22,7 @@ def object_to_json(obj):
         return [obj.x, obj.y]
     elif isinstance(obj, classes.Vector3f):
         return [obj.x, obj.y, obj.z]
-    elif isinstance(obj, classes.Vector4f):
-        return [obj.x, obj.y, obj.z, obj.w]
-    elif isinstance(obj, classes.Quaternionf):
+    elif isinstance(obj, (classes.Vector4f, classes.Quaternionf)):
         return [obj.x, obj.y, obj.z, obj.w]
     elif isinstance(obj, classes.ColorRGBA):
         return "rgba(%d, %d, %d, %d)" % (obj.r, obj.g, obj.b, obj.a)
@@ -81,7 +79,7 @@ def jsonify(obj: classes.Object):
                 continue
             jsony = object_to_json(obj)
             output[path_id] = jsony
-            for k, v in obj.__dict__.items():
+            for v in obj.__dict__.values():
                 if isinstance(v, (list, tuple)):
                     queue.extend(v)
                 elif isinstance(v, dict):

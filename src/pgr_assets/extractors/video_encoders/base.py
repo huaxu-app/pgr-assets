@@ -1,7 +1,7 @@
 import dataclasses
 import logging
 import typing
-from functools import lru_cache
+from functools import cache
 
 from ffmpeg import FFmpeg, FFmpegError
 
@@ -58,7 +58,7 @@ class BaseVideoEncoder(typing.Protocol):
             raise
 
 
-@lru_cache(maxsize=None)
+@cache
 def check_encoder_available(encoder: str):
     try:
         ffmpeg = (

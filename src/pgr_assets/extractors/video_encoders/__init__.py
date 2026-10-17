@@ -4,8 +4,8 @@ from .mp4 import WebMp4Encoder
 
 __all__ = [
     "BaseVideoEncoder",
-    "Track",
-    "check_encoder_available",
     "HlsEncoder",
+    "Track",
     "WebMp4Encoder",
+    "check_encoder_available",
 ]

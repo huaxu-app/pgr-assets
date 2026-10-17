@@ -1,7 +1,8 @@
 import os
 import struct
+from collections.abc import Callable
 from decimal import Decimal
-from typing import BinaryIO, Callable, Optional
+from typing import BinaryIO
 
 from .exceptions import BinaryTableError
 
@@ -14,7 +15,7 @@ class Reader:
     pos: int
     new_fixnum: bool
     use_string_pool: bool
-    string_pool_callback: Optional[Callable[[int], str]]
+    string_pool_callback: Callable[[int], str] | None
 
     # New style fixnum is from 3.3.0 (Jetavie) onwards
     def __init__(self, file: BinaryIO, new_fixnum=False):

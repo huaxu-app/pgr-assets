@@ -1,16 +1,16 @@
-from typing import Optional
-
 from tap import Tap
 
 from pgr_assets.logging_setup import configure_logging
+
 from .bundles import BundlesCommand
 from .extract import ExtractCommand
 from .list import ListCommand
+from .models import ModelsCommand
 from .spines import SpinesCommand
 
 
 class Args(Tap):
-    log_level: Optional[str] = None
+    log_level: str | None = None
 
     def __init__(self, *args, **kwargs):
         # Dashed flags across the whole CLI (--all-images, --log-level). Tap
@@ -26,6 +26,7 @@ class Args(Tap):
         )
         self.add_subparser("spines", SpinesCommand, help="Extracts all spine assets")
         self.add_subparser("bundles", BundlesCommand, help="Download bundles")
+        self.add_subparser("models", ModelsCommand, help="Download models")
 
     def process_args(self):
         # Tap calls this automatically at the end of parse_args(), so --log-level

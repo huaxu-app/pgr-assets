@@ -1,4 +1,6 @@
+import os
 import struct
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -36,7 +38,7 @@ def _nameless_table_bytes() -> bytes:
 
 class IsUtf8Test(unittest.TestCase):
     def test_valid_utf8(self):
-        self.assertTrue(is_utf8("héllo".encode("utf-8")))
+        self.assertTrue(is_utf8("héllo".encode()))
 
     def test_invalid_bytes(self):
         self.assertFalse(is_utf8(b"\xff\xfe\xff"))
@@ -79,7 +81,9 @@ class TryConvertToCsvTest(unittest.TestCase):
         self.assertIn(b"Id", csv)
 
     def test_unparseable_returns_none(self):
-        self.assertIsNone(try_convert_to_csv(b"not a valid binary table at all", (3, 0)))
+        self.assertIsNone(
+            try_convert_to_csv(b"not a valid binary table at all", (3, 0))
+        )
 
     def test_nameless_blob_returns_none(self):
         # Parses, but columns are nameless -- a binary blob, not a real table.
@@ -181,16 +185,36 @@ class RewriteTextAssetTest(unittest.TestCase):
         self.assertIn(b"Id", bytes(out))
 
 
+class WriteFileTest(unittest.TestCase):
+    def test_replaces_the_target_instead_of_truncating_it(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dest = Path(tmpdir) / "dest"
+            dest.write_bytes(b"old")
+            sibling = Path(tmpdir) / "sibling"
+            os.link(dest, sibling)
+
+            bundle.write_file(str(dest), b"new")
+
+            self.assertEqual(b"new", dest.read_bytes())
+            # The dedup hardlink must keep the content it was linked against.
+            self.assertEqual(b"old", sibling.read_bytes())
+            self.assertEqual(
+                ["dest", "sibling"], sorted(p.name for p in Path(tmpdir).iterdir())
+            )
+
+
 class SaveImageThumbnailTest(unittest.TestCase):
     def test_rolecharacter_thumbnail_with_windows_separators(self):
         from PIL import Image
 
         img = Image.new("RGB", (512, 512))
-        win_dest = "out\\assets\\product\\texture\\image\\rolecharacter\\r2\\foo.png"
+        win_dest = "out\\assets\\product\\texture\\image\\rolecharacter\\r2\\foo"
         saved = []
         with (
             mock.patch("pgr_assets.extractors.bundle.os.sep", "\\"),
-            mock.patch.object(Image.Image, "save", lambda self, p, **kw: saved.append(p)),
+            mock.patch.object(
+                bundle, "save_image_file", lambda img, p, **kw: saved.append(p)
+            ),
             mock.patch.object(Image.Image, "copy", lambda self: self),
             mock.patch.object(Image.Image, "thumbnail", lambda self, size: None),
         ):

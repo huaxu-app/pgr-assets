@@ -1,6 +1,11 @@
 import logging
+import multiprocessing
 import os
 import sys
+from collections.abc import Generator
+from contextlib import contextmanager
+from logging.handlers import QueueHandler, QueueListener
+from multiprocessing.queues import Queue
 
 from tqdm import tqdm
 
@@ -51,4 +56,28 @@ def configure_logging(level: int | str = logging.INFO) -> None:
     root = logging.getLogger()
     root.handlers.clear()
     root.addHandler(handler)
+    root.setLevel(level)
+
+
+@contextmanager
+def worker_logs() -> Generator[tuple[Queue, int]]:
+    """
+    Print worker process records through this process's handlers, so they
+    clear and redraw the progress bar. Pass the yielded pair to
+    `log_to_queue` in each worker's initializer.
+    """
+    queue: Queue = multiprocessing.Queue()
+    root = logging.getLogger()
+    listener = QueueListener(queue, *root.handlers, respect_handler_level=True)
+    listener.start()
+    try:
+        yield queue, root.level
+    finally:
+        listener.stop()
+
+
+def log_to_queue(queue: Queue, level: int) -> None:
+    root = logging.getLogger()
+    root.handlers.clear()
+    root.addHandler(QueueHandler(queue))
     root.setLevel(level)

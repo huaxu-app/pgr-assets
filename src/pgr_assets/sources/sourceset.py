@@ -1,5 +1,4 @@
 import logging
-from typing import Union, Tuple
 
 from pgr_assets.versions import PATCH_KEY_SCHEME_MIN_VERSION, parse_version
 
@@ -23,19 +22,20 @@ from .xbuildconfig import extract_build_key
 logger = logging.getLogger("sourceset")
 
 # Re-exported for callers that import it from this module historically.
-__all__ = ["SourceSet", "BlobNotFoundException"]
+__all__ = ["BlobNotFoundException", "SourceSet"]
 
 
 class SourceSet:
-    def __init__(self):
+    def __init__(self, cache_dir: str | None = None):
         self.sources: list[Source] = []
+        self._cache_dir = cache_dir
 
     def add_primary(
         self,
         primary_type: str,
-        obb: Union[str, None],
+        obb: str | None,
         prerelease: bool,
-        game_dir: Union[str, None] = None,
+        game_dir: str | None = None,
     ):
         if primary_type == "obb":
             assert obb is not None, "obb path required when primary is 'obb'"
@@ -44,7 +44,9 @@ class SourceSet:
             assert game_dir is not None, "game_dir required when primary is 'local'"
             impl = GameDirSource(game_dir)
         elif primary_type in PcStarterCdn.__members__:
-            impl = PcStarterSource(PcStarterCdn[primary_type], prerelease)
+            impl = PcStarterSource(
+                PcStarterCdn[primary_type], prerelease, cache_dir=self._cache_dir
+            )
         else:
             raise UnknownSourceError(f"Unknown primary type {primary_type}")
 
@@ -53,7 +55,7 @@ class SourceSet:
 
         self.sources.append(impl)
 
-    def add_patch(self, patch_type: str, version: Union[str, None]):
+    def add_patch(self, patch_type: str, version: str | None):
         if patch_type not in PatchCdn.__members__:
             raise UnknownSourceError(f"Unknown patch type {patch_type}")
 
@@ -72,7 +74,7 @@ class SourceSet:
 
         key = None
         if parse_version(version) >= PATCH_KEY_SCHEME_MIN_VERSION:
-            key = extract_build_key(self._resources_assets_bytes())
+            key = self._build_key()
             logger.debug("Extracted patch key from resources.assets")
 
         impl = PatchCdnSource(PatchCdn[patch_type], version, key=key)
@@ -85,12 +87,23 @@ class SourceSet:
 
         self.sources.append(impl)
 
-    def version(self) -> Union[Tuple[int, ...], None]:
+    def version(self) -> tuple[int, ...] | None:
         for source in self.sources:
             version = source.version()
             if version is not None:
                 return version
         return None
+
+    def _build_key(self) -> str:
+        def produce() -> str:
+            return extract_build_key(self._resources_assets_bytes())
+
+        for source in self.sources:
+            if isinstance(source, PcStarterSource) and source.has_blob(
+                "resources.assets"
+            ):
+                return source.cached(source.resources()["resources.assets"], produce)
+        return produce()
 
     def _resources_assets_bytes(self) -> bytes:
         for source in self.sources:
@@ -101,9 +114,7 @@ class SourceSet:
         )
 
     def list_all_bundles(self):
-        return set(
-            bundle for source in self.sources for bundle in source.bundle_names()
-        )
+        return {bundle for source in self.sources for bundle in source.bundle_names()}
 
     def warm(self):
         for source in self.sources:

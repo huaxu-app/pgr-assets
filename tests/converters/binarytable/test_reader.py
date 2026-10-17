@@ -1,6 +1,7 @@
 import io
 import unittest
 from decimal import Decimal
+
 from pgr_assets.converters.binarytable.reader import Reader
 
 
@@ -107,13 +108,13 @@ class ReaderTest(unittest.TestCase):
     def test_read_fix2(self):
         self.assertEqual(
             Reader(io.BytesIO(b"\x0f\x01\x02\x80"), new_fixnum=True).read_fix2(),
-            [Decimal("1.5"), Decimal("-2")],
+            [Decimal("1.5"), Decimal(-2)],
         )
 
     def test_read_fix3(self):
         self.assertEqual(
             Reader(io.BytesIO(b"\x0f\x01\x02\x80\x00"), new_fixnum=True).read_fix3(),
-            [Decimal("1.5"), Decimal("-2"), 0],
+            [Decimal("1.5"), Decimal(-2), 0],
         )
 
     def test_read_fix_quaternion(self):
@@ -121,7 +122,7 @@ class ReaderTest(unittest.TestCase):
             Reader(
                 io.BytesIO(b"\x00\x0f\x01\x00\x02\x80"), new_fixnum=True
             ).read_fix_quaternion(),
-            [0, Decimal("1.5"), 0, Decimal("-2")],
+            [0, Decimal("1.5"), 0, Decimal(-2)],
         )
 
     def test_read_list_fix2(self):
@@ -129,7 +130,7 @@ class ReaderTest(unittest.TestCase):
             Reader(
                 io.BytesIO(b"\x02\x0f\x01\x02\x80\x00\x00"), new_fixnum=True
             ).read_list_fix2(),
-            [[Decimal("1.5"), Decimal("-2")], [0, 0]],
+            [[Decimal("1.5"), Decimal(-2)], [0, 0]],
         )
 
     def test_read_list_fix3(self):

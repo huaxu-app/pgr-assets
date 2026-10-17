@@ -111,12 +111,12 @@ quirks_glue = {
 }
 
 
-quirks_skip = set(
+quirks_skip = {
     layer
     for quirk in quirks_glue.values()
     for layer in quirk.layers
     if layer not in quirks_glue
-)
+}
 
 
 def find_quirk(name: str) -> dict | None:

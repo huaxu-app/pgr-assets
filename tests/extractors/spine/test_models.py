@@ -66,7 +66,7 @@ class FinalizeTest(unittest.TestCase):
         self.assertEqual(["b", "a", "c"], [s.name for s in spine.spines])
 
     def test_sorts_by_order_list_reversed(self):
-        spine = Spine(name="s", spine_order_list=["10", "20"])
+        spine = Spine(name="s", spine_order_list=[10, 20])
         s1 = SpineInfo("first", "first", ids={10})
         s2 = SpineInfo("second", "second", ids={20})
         spine.spines = [s1, s2]
@@ -77,7 +77,7 @@ class FinalizeTest(unittest.TestCase):
 
 class FixActorSpineTest(unittest.TestCase):
     def test_generic_zeroes_position(self):
-        spine = Spine(name="someactor", spine_order_list=["a", "b"])
+        spine = Spine(name="someactor", spine_order_list=[1, 2])
         spine.spines = [SpineInfo("a", "a", position=(5, 5), scale=3)]
         spine.fix_actor_spine()
         info = spine.spines[0]
@@ -86,10 +86,10 @@ class FixActorSpineTest(unittest.TestCase):
         self.assertEqual((0.5, 0), info.pivot)
 
     def test_biankaskin_reverses_list_and_keeps_position(self):
-        spine = Spine(name="uimoviebiankaskin", spine_order_list=["a", "b"])
+        spine = Spine(name="uimoviebiankaskin", spine_order_list=[1, 2])
         spine.spines = [SpineInfo("a", "a", position=(5, 5))]
         spine.fix_actor_spine()
-        self.assertEqual(["b", "a"], spine.spine_order_list)
+        self.assertEqual([2, 1], spine.spine_order_list)
         self.assertEqual((5, 5), spine.spines[0].position)
         self.assertEqual((0.5, 0), spine.spines[0].pivot)
 

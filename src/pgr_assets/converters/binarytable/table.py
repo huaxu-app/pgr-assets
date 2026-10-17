@@ -1,7 +1,7 @@
 import csv
 import struct
 from dataclasses import dataclass
-from typing import BinaryIO, List, IO, Dict, cast
+from typing import IO, BinaryIO, cast
 
 from .exceptions import BinaryTableError
 from .reader import Reader
@@ -27,7 +27,7 @@ class Column:
 
     def add_dict_key(self, key):
         if self.dict_keys is None or self.dict_key_presence is None:
-            self.dict_keys = list()
+            self.dict_keys = []
             self.dict_key_presence = set()
 
         if key not in self.dict_key_presence:
@@ -39,7 +39,7 @@ class BinaryTable:
     reader: Reader
 
     info_length: int
-    columns: List[Column]
+    columns: list[Column]
 
     has_primary_key: bool
     primary_key: str | None
@@ -51,11 +51,11 @@ class BinaryTable:
 
     enable_string_pool: bool = False
     pool_column_size: int
-    column_map: Dict[int, bool]
-    pool_offset_info_array: List[int]
+    column_map: dict[int, bool]
+    pool_offset_info_array: list[int]
     pool_content_start_pos: int
 
-    rows: List
+    rows: list
 
     # Per-column bookkeeping categories, precomputed once from the column type so
     # the per-cell row loop avoids repeated method-call dispatch.
@@ -257,8 +257,7 @@ class BinaryTable:
             kind = column_kinds[j]
             if kind == self._KIND_LIST:
                 n = len(cast(list, value))
-                if n > column.list_length:
-                    column.list_length = n
+                column.list_length = max(column.list_length, n)
             elif kind == self._KIND_INT_DICT:
                 dict_value = cast(dict, value)
                 if dict_value:
@@ -280,7 +279,7 @@ class BinaryTable:
             else:
                 yield column.name
 
-    def csv_row(self, row: List):
+    def csv_row(self, row: list):
         for key, column in enumerate(self.columns):
             value = row[key]
             # Int dicts are lists if we squint hard enough

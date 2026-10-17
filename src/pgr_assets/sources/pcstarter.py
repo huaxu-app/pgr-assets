@@ -1,16 +1,15 @@
 import logging
-from typing import Union, Tuple
+from dataclasses import dataclass
+from enum import Enum
 
 import UnityPy
 
 from pgr_assets.versions import parse_version
 
 from . import Source
-from ._index import read_textasset_bytes, loads_index, merge_index
+from ._index import loads_index, merge_index, read_textasset_bytes
 from .exceptions import BlobDownloadError, SourceIndexError
 from .session import get_session
-from dataclasses import dataclass
-from enum import Enum
 
 
 @dataclass
@@ -18,7 +17,6 @@ class PcStarterData:
     cdn: str
     game_id: int
     iteration: int | str
-    predownload: bool
 
     def index_url(self):
         return f"{self.cdn}game/G{self.game_id}/{self.iteration}/index.json"
@@ -30,37 +28,31 @@ class PcStarterCdn(Enum):
         "https://prod-alicdn-gamestarter.kurogame.com/launcher/",
         143,
         "50015_LWdk9D2Ep9mpJmqBZZkcPBU2YNraEWBQ",
-        False,
     )
     KR_PC = PcStarterData(
         "https://prod-alicdn-gamestarter.kurogame.com/launcher/",
         286,
         "50011_XefwDdpgPxxLABoTOD0yuqTFBC3koJZ0",
-        False,
     )
     JP_PC = PcStarterData(
         "https://prod-alicdn-gamestarter.kurogame.com/launcher/",
         282,
         "50007_NxWGZ0d254oWqZKuuL6szOK7WRLPt668",
-        False,
     )
     TW_PC = PcStarterData(
         "https://prod-alicdn-gamestarter.kurogame.com/launcher/",
         279,
         "50016_i2n5NLmdCAmOGP3J1tJOlWKNSMQuyWL7",
-        False,
     )
     CN_PC = PcStarterData(
         "https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/",
         148,
         "10011_qYQv6TyyyhCKD3ox3gssyolNPwMoCPZt",
-        False,
     )
     CN_PC_BETA = PcStarterData(
         "https://prod-cn-alicdn-gamestarter.kurogame.com/launcher/",
         148,
         "10013_Gp9Gz1u9I5eyllXu64TfWhaPBQFXB449",
-        False,
     )
 
 
@@ -68,13 +60,19 @@ class PcStarterSource(Source):
     _logger = logging.getLogger("PcStarterSource")
     _cdn_index: dict | None = None
     _matrix_index: dict | None = None
-    _resources: dict | None = None
+    _resources: dict[str, str] | None = None
     _section: str
 
-    def __init__(self, cdn: PcStarterCdn, prerelease: bool):
+    def __init__(
+        self,
+        cdn: PcStarterCdn,
+        prerelease: bool,
+        cache_dir: str | None = None,
+    ):
         self._cdn_name = cdn.name
         self._cdn = cdn.value
         self._section = "predownload" if prerelease else "default"
+        self._cache_dir = cache_dir
 
     def cdn_index(self):
         if self._cdn_index is not None:
@@ -88,14 +86,19 @@ class PcStarterSource(Source):
         if self._matrix_index is not None:
             return self._matrix_index
 
+        index = self.cached(self.resources()["index"], self._download_matrix_index)
+        self._matrix_index = index
+        return index
+
+    def _download_matrix_index(self) -> dict:
         env = UnityPy.load(self.get_blob("index"))
 
         if "assets/temp/index.bytes" not in env.container:
             raise SourceIndexError("Failed to find index in patch index bundle")
 
-        index = merge_index(loads_index(read_textasset_bytes(env, "assets/temp/index.bytes")))
-        self._matrix_index = index
-        return index
+        return merge_index(
+            loads_index(read_textasset_bytes(env, "assets/temp/index.bytes"))
+        )
 
     def has_blob(self, blob: str) -> bool:
         return blob in self.resources()
@@ -110,7 +113,7 @@ class PcStarterSource(Source):
             )
         return resp.content
 
-    def version(self) -> Union[Tuple[int, ...], None]:
+    def version(self) -> tuple[int, ...] | None:
         return parse_version(self.cdn_index()[self._section]["version"])
 
     def base_path(self):
@@ -125,27 +128,31 @@ class PcStarterSource(Source):
             url += "/"
         return url
 
-    def bundle_to_blob(self, bundle: str) -> Union[str, None]:
+    def bundle_to_blob(self, bundle: str) -> str | None:
         try:
             return self.matrix_index()[bundle][0]
         except KeyError:
             return None
 
-    def bundle_sha1(self, bundle: str) -> Union[str, None]:
+    def bundle_sha1(self, bundle: str) -> str | None:
         try:
             return self.matrix_index()[bundle][1]
         except KeyError:
             return None
 
-    def resources(self):
+    def resources(self) -> dict[str, str]:
         if self._resources is not None:
             return self._resources
 
+        url = self.blob_cdn_url() + self.cdn_index()[self._section]["resources"]
+        resources = self.cached(url, lambda: self._download_resources(url))
+        self._resources = resources
+        return resources
+
+    def _download_resources(self, url: str) -> dict[str, str]:
         blob_base = self.blob_cdn_url()
 
-        resource_index = self._get_json(
-            blob_base + self.cdn_index()[self._section]["resources"]
-        )
+        resource_index = self._get_json(url)
         resources = {}
         for resource in resource_index["resource"]:
             dest = resource["dest"]
@@ -154,7 +161,6 @@ class PcStarterSource(Source):
                 dest = dest[1:]
             blob = dest.split("/")[-1]
             resources[blob] = blob_base + self.base_path() + dest
-        self._resources = resources
         return resources
 
     def bundle_names(self):

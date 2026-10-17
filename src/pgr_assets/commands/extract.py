@@ -3,13 +3,23 @@ import json
 import logging
 import os
 import sys
-from typing import List, Optional, Set
+from multiprocessing.queues import Queue
+from typing import Optional
 
 import UnityPy
 from tqdm import tqdm
 
 from pgr_assets import extractors
 from pgr_assets.audio import ACB, CueRegistry
+from pgr_assets.audio.paths import AUDIO_DIR, sheet_base_name
+from pgr_assets.audio.render import MP3, WAV, AudioFormat
+from pgr_assets.audio.variants import (
+    collect_variants,
+    write_aggregate,
+    write_bank_variants,
+)
+from pgr_assets.image_names import find_ambiguous_images, make_image_reference
+from pgr_assets.logging_setup import log_to_queue, worker_logs
 from pgr_assets.sources import SourceError, SourceSet
 from pgr_assets.sources.sourceset import BlobNotFoundException
 
@@ -25,16 +35,16 @@ _WORKER_STATE: Optional["State"] = None
 
 
 class ExtractCommand(BundleCommandArgs):
-    convert_binary_tables: bool = False  # Allows converting binary tables into CSV files (WARNING: not everything is supported)
-    raw_audio: bool = False  # Store extracted audio from ACB/AWB as WAV files instead of converting them to MP3
-    hls: bool = (
-        False  # Generate HTTP Live Streaming variants for videos on top of mp4's
+    convert_binary_tables: bool = False  # Convert supported binary tables to CSV
+    raw_audio: bool = False  # Write WAV audio instead of MP3
+    hls: bool = False  # Write HLS variants alongside MP4 videos
+
+    cache: str | None = None  # Path to sha1 cache file
+    write_settings: bool = (
+        False  # Write preset, version and asset metadata to settings.json
     )
 
-    cache: Optional[str] = None  # Path to sha1 cache file
-    write_settings: bool = False  # Write a small settings file to the output directory containing preset and version
-
-    workers: int = 0  # Number of parallel workers for non-video bundles (0 = CPU count)
+    workers: int = 0  # Non-video workers (0 = twice CPU count)
     fail_on_error: bool = False  # Exit with a non-zero status if any bundle fails
 
     def configure(self) -> None:
@@ -48,9 +58,10 @@ class State:
     cues: CueRegistry
     decrypt_key: str
     convert_binary_tables: bool
-    encode_mp3: bool
+    audio_format: AudioFormat
     game_version: tuple[int, int]
     video_encoders: list[BaseVideoEncoder]
+    ambiguous_images: dict[str, str]
 
     def __init__(self, sources: SourceSet, args: ExtractCommand, decrypt_key: str):
         version = sources.version()
@@ -62,7 +73,8 @@ class State:
         self.output_dir = args.output
         self.decrypt_key = decrypt_key
         self.convert_binary_tables = args.convert_binary_tables
-        self.encode_mp3 = not args.raw_audio
+        self.audio_format = WAV if args.raw_audio else MP3
+        self.ambiguous_images = {}
 
         self.video_encoders = [WebMp4Encoder()]
         if args.hls:
@@ -81,6 +93,7 @@ def process_bundle(bundle: str, state: State):
         output_dir=state.output_dir,
         game_version=state.game_version,
         allow_binary_table_convert=state.convert_binary_tables,
+        ambiguous_images=state.ambiguous_images,
     )
 
 
@@ -97,7 +110,7 @@ def process_audio(bundle: str, state: State):
             awb_data = state.sources.find_bundle(cue_sheet.awb)
     else:
         acb_file = bundle
-        base_name = bundle.split("/", 2)[2].split(".")[0].lower()
+        base_name = sheet_base_name(bundle)
         acb_data = state.sources.find_bundle(bundle)
         try:
             awb_data = state.sources.find_bundle(bundle.replace(".acb", ".awb"))
@@ -108,11 +121,9 @@ def process_audio(bundle: str, state: State):
 
     acb = ACB(acb_data, awb_data)
     logger.debug(f"Extracting {acb_file}")
-    acb.extract(
-        key=AUDIO_KEY,
-        dirname=os.path.join(state.output_dir, "audio", base_name),
-        encode=state.encode_mp3,
-    )
+    dirname = os.path.join(state.output_dir, AUDIO_DIR, base_name)
+    variants = acb.extract(AUDIO_KEY, dirname, state.audio_format)
+    write_bank_variants(dirname, variants)
 
 
 def process_usm(bundle: str, state: State):
@@ -128,7 +139,8 @@ def process_usm(bundle: str, state: State):
     )
 
 
-def _init_worker(state: State):
+def _init_worker(state: State, queue: Queue, level: int):
+    log_to_queue(queue, level)
     global _WORKER_STATE
     _WORKER_STATE = state
     UnityPy.set_assetbundle_decrypt_key(state.decrypt_key)
@@ -158,7 +170,7 @@ def process(bundle: str) -> bool:
         return False
 
 
-def determine_sha1_cache_skip(file: str, bundles: Set[str], state: State) -> Set[str]:
+def determine_sha1_cache_skip(file: str, bundles: set[str], state: State) -> set[str]:
     if not os.path.exists(file):
         return bundles
 
@@ -168,10 +180,9 @@ def determine_sha1_cache_skip(file: str, bundles: Set[str], state: State) -> Set
     wanted = set()
 
     for bundle in bundles:
-        if bundle in cached:
-            if state.sources.bundle_sha1(bundle) == cached[bundle]:
-                logger.debug(f"Skipping {bundle} due to cache")
-                continue
+        if bundle in cached and state.sources.bundle_sha1(bundle) == cached[bundle]:
+            logger.debug(f"Skipping {bundle} due to cache")
+            continue
         wanted.add(bundle)
 
     return wanted
@@ -183,11 +194,11 @@ def write_sha1_cache(file: str, entries: dict):
 
 
 def execute_in_pool(
-    bundles: List[str],
+    bundles: list[str],
     state: State,
-    cache: Optional[str],
+    cache: str | None,
     use_processes: bool,
-    max_workers: Optional[int] = None,
+    max_workers: int | None = None,
     checkpoint_step: int = 100,
 ) -> int:
     fail_count = 0
@@ -198,43 +209,46 @@ def execute_in_pool(
             cache_entries = json.load(f)
     since_checkpoint = 0
 
-    if use_processes:
-        # Worker processes receive the (already warmed) state once via the
-        # initializer, so only the bundle name is sent per task.
-        executor = concurrent.futures.ProcessPoolExecutor(
-            max_workers=max_workers, initializer=_init_worker, initargs=(state,)
-        )
-    else:
-        # Threads share this process; point the worker handle at our state.
-        global _WORKER_STATE
-        _WORKER_STATE = state
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+    with worker_logs() as (queue, level):
+        if use_processes:
+            # Worker processes receive the (already warmed) state once via the
+            # initializer, so only the bundle name is sent per task.
+            executor = concurrent.futures.ProcessPoolExecutor(
+                max_workers=max_workers,
+                initializer=_init_worker,
+                initargs=(state, queue, level),
+            )
+        else:
+            # Threads use this process's shared worker state.
+            global _WORKER_STATE
+            _WORKER_STATE = state
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
 
-    with executor:
-        future_to_bundle = {
-            executor.submit(process, bundle): bundle for bundle in bundles
-        }
-        for future in tqdm(
-            concurrent.futures.as_completed(future_to_bundle),
-            total=len(future_to_bundle),
-        ):
-            bundle = future_to_bundle[future]
-            try:
-                ok = future.result()
-            except Exception as e:
-                # The worker itself crashed (e.g. process killed); record and continue.
-                logger.exception(f"Worker crashed on {bundle}", exc_info=e)
-                ok = False
+        with executor:
+            future_to_bundle = {
+                executor.submit(process, bundle): bundle for bundle in bundles
+            }
+            for future in tqdm(
+                concurrent.futures.as_completed(future_to_bundle),
+                total=len(future_to_bundle),
+            ):
+                bundle = future_to_bundle[future]
+                try:
+                    ok = future.result()
+                except Exception as e:
+                    # Record worker crashes as failed bundles.
+                    logger.exception(f"Worker crashed on {bundle}", exc_info=e)
+                    ok = False
 
-            if ok:
-                if cache:
-                    cache_entries[bundle] = state.sources.bundle_sha1(bundle)
-                    since_checkpoint += 1
-                    if since_checkpoint >= checkpoint_step:
-                        write_sha1_cache(cache, cache_entries)
-                        since_checkpoint = 0
-            else:
-                fail_count += 1
+                if ok:
+                    if cache:
+                        cache_entries[bundle] = state.sources.bundle_sha1(bundle)
+                        since_checkpoint += 1
+                        if since_checkpoint >= checkpoint_step:
+                            write_sha1_cache(cache, cache_entries)
+                            since_checkpoint = 0
+                else:
+                    fail_count += 1
 
     if cache:
         write_sha1_cache(cache, cache_entries)
@@ -257,28 +271,26 @@ def extract_cmd(args: ExtractCommand):
 
     state = State(ss, args, resolved.decrypt_key)
 
-    if (
-        any(bundle.endswith(".acb") for bundle in args.bundles)
-        or args.all_audio
-        or args.all
-    ):
-        state.load_cues()
+    # Derive collisions from every bundle the source knows about
+    state.ambiguous_images = find_ambiguous_images(ss.list_all_bundles())
 
-    # determine all tasks based on flags, use set because we don't want duplicates
     listed_bundles = selected_bundles(args, ss)
 
     if len(listed_bundles) == 0:
         logger.error("No bundles specified")
         sys.exit(1)
 
+    has_audio = any(bundle.endswith(".acb") for bundle in listed_bundles)
+    if has_audio:
+        state.load_cues()
+
     if args.cache:
         listed_bundles = determine_sha1_cache_skip(args.cache, listed_bundles, state)
 
-    # Warm the index and resource maps once so worker processes inherit (fork) or
-    # receive once (spawn) the cached lookups instead of re-fetching them per worker.
+    # Populate source caches before copying state to worker processes.
     ss.warm()
 
-    # Non video jobs spend a lot of time downloading so overcommit to fill the load
+    # Downloads leave workers idle, so default to twice the CPU count.
     workers = args.workers or ((os.cpu_count() or 1) * 2)
 
     fail_count = 0
@@ -305,7 +317,7 @@ def extract_cmd(args: ExtractCommand):
             encoder.setup()
 
         logger.info(f"Processing {len(video_bundles)} video bundles")
-        # Video is ffmpeg-subprocess-bound; threads keep the encoder objects in-process.
+        # ffmpeg runs in subprocesses, so threads can share the encoder objects.
         batch_failed = execute_in_pool(
             video_bundles,
             state,
@@ -317,11 +329,33 @@ def extract_cmd(args: ExtractCommand):
         ok_count += len(video_bundles) - batch_failed
         fail_count += batch_failed
 
+    # Rebuild from bank sidecars even when the sha1 cache skips every bank.
+    audio_dir = os.path.join(args.output, AUDIO_DIR)
+    variants = {}
+    if has_audio:
+        variants = write_aggregate(audio_dir)
+    elif args.write_settings:
+        variants = collect_variants(audio_dir)
+
     if args.write_settings:
         version = ss.version()
         assert version is not None
         with open(os.path.join(args.output, "settings.json"), "w") as f:
-            json.dump({"server": args.preset, "version": "%d.%d.%d" % version[:3]}, f)
+            json.dump(
+                {
+                    "server": args.preset,
+                    "version": "{}.{}.{}".format(*version[:3]),
+                    "ambiguous_images": sorted(
+                        make_image_reference(stem) for stem in state.ambiguous_images
+                    ),
+                    "audio_variants": {
+                        f"{AUDIO_DIR}/{sheet}/{cue}": suffixes
+                        for sheet, cues in sorted(variants.items())
+                        for cue, suffixes in sorted(cues.items())
+                    },
+                },
+                f,
+            )
 
     report_results(ok_count, fail_count)
 

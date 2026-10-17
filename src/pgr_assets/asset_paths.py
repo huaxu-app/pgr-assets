@@ -32,6 +32,9 @@ THUMBNAIL_FORCED_ASPECTS = {
     "/image/bgcomiccg/": 16 / 9,
 }
 
+# Source extensions image bundles are named with, for finding collissions.
+IMAGE_SOURCE_EXTENSIONS = (".png", ".jpg")
+
 # Bundle-name markers used by the --all-temp / --all-images selection filters.
 TEMP_BUNDLE_MARKER = "assets/temp/"
 TEXTURE_BUNDLE_MARKER = "assets/product/texture/"

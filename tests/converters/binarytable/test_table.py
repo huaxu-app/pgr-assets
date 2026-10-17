@@ -92,7 +92,7 @@ class TableTest(unittest.TestCase):
         self.assertEqual(81, len(rows))
         # First row had 0 as SettleTime
         row = rows[0]
-        self.assertEqual(Decimal("0"), row[3])
+        self.assertEqual(Decimal(0), row[3])
 
         # Row 17 was the first with a non-zero
         row = rows[16]
@@ -110,7 +110,7 @@ class TableTest(unittest.TestCase):
         self.assertEqual(81, len(rows))
         # First row had 0 as SettleTime
         row = rows[0]
-        self.assertEqual(Decimal("0"), row[3])
+        self.assertEqual(Decimal(0), row[3])
 
         # Row 17 was the first with a non-zero
         row = rows[16]
@@ -141,8 +141,8 @@ class TableTest(unittest.TestCase):
 
         # has both a negative number and a small number
         row = rows[0]
-        self.assertEqual(Decimal("-4"), row[4])
-        self.assertEqual(Decimal("1"), row[5])
+        self.assertEqual(Decimal(-4), row[4])
+        self.assertEqual(Decimal(1), row[5])
 
     def test_new_style_fixnum_npcsearcher(self):
         with open(FIXTURES / "npcsearcher.bytes", "rb") as f:
@@ -151,5 +151,5 @@ class TableTest(unittest.TestCase):
 
         # has both a negative number and a small number
         row = rows[0]
-        self.assertEqual(Decimal("-4"), row[4])
-        self.assertEqual(Decimal("1"), row[5])
+        self.assertEqual(Decimal(-4), row[4])
+        self.assertEqual(Decimal(1), row[5])

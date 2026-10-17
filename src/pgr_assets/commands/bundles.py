@@ -2,13 +2,13 @@ import concurrent.futures
 import logging
 import os
 import sys
-from typing import List, Optional
 
 from tqdm import tqdm
 
 from pgr_assets.sources import SourceSet
 from pgr_assets.sources.sourceset import BlobNotFoundException
-from .helpers import build_source_set, BundleCommandArgs, selected_bundles
+
+from .helpers import BundleCommandArgs, build_source_set, selected_bundles
 
 logger = logging.getLogger("pgr-assets")
 
@@ -40,9 +40,7 @@ def process(bundle: str, state: State):
         return None
 
 
-def execute_in_pool(
-    bundles: List[str], state: State, max_workers: Optional[int] = None
-):
+def execute_in_pool(bundles: list[str], state: State, max_workers: int | None = None):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(process, bundle, state) for bundle in bundles]
         for future in tqdm(

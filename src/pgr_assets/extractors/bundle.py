@@ -9,6 +9,7 @@ from UnityPy.enums import ClassIDType
 
 from pgr_assets.asset_paths import THUMBNAIL_FORCED_ASPECTS, THUMBNAIL_IMAGE_SIZES
 from pgr_assets.converters.binarytable.exceptions import BinaryTableError
+from pgr_assets.image_names import resolve_image_stems
 
 from .helpers import rewrite_text_asset
 
@@ -20,7 +21,10 @@ def extract_bundle(
     output_dir: str,
     game_version: tuple[int, int],
     allow_binary_table_convert=False,
+    ambiguous_images: dict[str, str] | None = None,
 ):
+    ambiguous_images = ambiguous_images or {}
+
     for path, obj in env.container.items():
         dest = os.path.join(output_dir, *path.split("/"))
         # create dest based on original path
@@ -34,12 +38,12 @@ def extract_bundle(
                     for o in cast(Any, obj).assets_file.objects.values()
                     if o.type == ClassIDType.Font
                 )
-                with open(dest, "wb") as f:
-                    f.write(bytes(font.read().m_FontData))
+                write_file(dest, bytes(font.read().m_FontData))
                 logger.debug(f"Extracted font {path}")
             elif obj.type.name in ["Texture2D", "Sprite"]:
                 data = cast(Texture2D | Sprite, obj.read())
-                save_image(data.image, dest)
+                for stem in resolve_image_stems(path, ambiguous_images):
+                    save_image(data.image, os.path.join(output_dir, *stem.split("/")))
                 logger.debug(f"Extracted {path}")
             elif obj.type.name == "TextAsset":
                 text = cast(TextAsset, obj.read())
@@ -51,8 +55,7 @@ def extract_bundle(
                 )
                 # path can change a bit
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
-                with open(dest, "wb") as f:
-                    f.write(data)
+                write_file(dest, data)
                 logger.debug(f"Extracted {path}")
             # else:
             #     logger.warning(f"Unsupported type {obj.type.name} for {path}")
@@ -79,11 +82,22 @@ def get_text_asset(
     return data.decode("utf-8")
 
 
+def write_file(dest: str, data: bytes | bytearray):
+    tmp = f"{dest}.tmp"
+    with open(tmp, "wb") as f:
+        f.write(data)
+    os.replace(tmp, dest)
+
+
+def save_image_file(img: Image.Image, dest: str, **options):
+    tmp = f"{dest}.tmp"
+    img.save(tmp, format=os.path.splitext(dest)[1][1:], **options)
+    os.replace(tmp, dest)
+
+
 def save_image(img: Image.Image, dest: str):
-    # correct extension
-    dest, ext = os.path.splitext(dest)
-    img.save(dest + ".png")
-    img.save(dest + ".webp", lossless=False, quality=80)
+    save_image_file(img, dest + ".png")
+    save_image_file(img, dest + ".webp", lossless=False, quality=80)
 
     path = dest.replace(os.sep, "/")
     for marker, sizes in THUMBNAIL_IMAGE_SIZES.items():
@@ -99,5 +113,5 @@ def save_image(img: Image.Image, dest: str):
                 thumb = img.resize(
                     (width, round(width / aspect)), Image.Resampling.LANCZOS
                 )
-            thumb.save(f"{dest}.{size}.webp", lossless=False, quality=80)
+            save_image_file(thumb, f"{dest}.{size}.webp", lossless=False, quality=80)
         break

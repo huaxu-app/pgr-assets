@@ -2,10 +2,10 @@
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS build
 LABEL authors="nova"
 
-# git is needed for the pycricodecs git+https dependency
+# build-essential compiles pycricodecs-archive where no wheel exists (aarch64)
 RUN apt-get -qq update && \
     apt-get -yqq --no-install-recommends install \
-      build-essential git && \
+      build-essential && \
     rm -rf /var/lib/apt/lists/*
 
 ENV UV_COMPILE_BYTECODE=1 \

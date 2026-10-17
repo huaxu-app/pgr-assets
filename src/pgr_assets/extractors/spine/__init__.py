@@ -1,5 +1,5 @@
 from . import quirks
 from .extractor import extract_spine
-from .models import Spine, SpineInfo, BoneFollower
+from .models import BoneFollower, Spine, SpineInfo
 
-__all__ = ["quirks", "extract_spine", "Spine", "SpineInfo", "BoneFollower"]
+__all__ = ["BoneFollower", "Spine", "SpineInfo", "extract_spine", "quirks"]

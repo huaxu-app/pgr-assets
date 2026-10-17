@@ -3,11 +3,11 @@ import logging
 import os
 import random
 import string
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Union, Dict, Tuple, Iterable, Optional
 from urllib.parse import urlparse
 
 import UnityPy
@@ -15,7 +15,7 @@ import UnityPy
 from pgr_assets.versions import PATCH_KEY_SCHEME_MIN_VERSION, parse_version
 
 from . import Source
-from ._index import read_textasset_bytes, loads_index, merge_index
+from ._index import loads_index, merge_index, read_textasset_bytes
 from .exceptions import BlobDownloadError, SourceIndexError
 from .session import get_session
 
@@ -34,7 +34,7 @@ class PatchCdnData:
     cdn: str
     app_id: str
     platform: str
-    key: Optional[str] = None
+    key: str | None = None
     sign: bool = False
 
     def config_url(self, version: str):
@@ -154,11 +154,11 @@ class PatchCdnSource(Source):
     _logger = logging.getLogger("PatchCdnSource")
     _cdn_name: str
     _cdn: PatchCdnData
-    _index: Dict[str, Tuple[str, str, int]] | None = None
-    _resources: Dict[str, str] | None = None
+    _index: dict[str, tuple[str, str, int]] | None = None
+    _resources: dict[str, str] | None = None
     _sign_key: str | None = None
 
-    def __init__(self, cdn: PatchCdn, version: str, key: Optional[str] = None):
+    def __init__(self, cdn: PatchCdn, version: str, key: str | None = None):
         self._cdn_name = cdn.name
         self._cdn = replace(cdn.value, key=key) if key else cdn.value
 
@@ -242,29 +242,29 @@ class PatchCdnSource(Source):
             )
         return resp.content
 
-    def bundle_to_blob(self, bundle: str) -> Union[str, None]:
+    def bundle_to_blob(self, bundle: str) -> str | None:
         try:
             return self.index()[bundle][0]
         except KeyError:
             return None
 
-    def bundle_sha1(self, bundle: str) -> Union[str, None]:
+    def bundle_sha1(self, bundle: str) -> str | None:
         try:
             return self.index()[bundle][1]
         except KeyError:
             return None
 
-    def resources(self) -> Dict[str, str]:
+    def resources(self) -> dict[str, str]:
         if self._resources is not None:
             return self._resources
 
         resources = {}
-        for bundle, (blob, _, _) in self.index().items():
+        for blob, _, _ in self.index().values():
             resources[blob] = self._cdn_url + blob
         self._resources = resources
         return resources
 
-    def index(self) -> Dict[str, Tuple[str, str, int]]:
+    def index(self) -> dict[str, tuple[str, str, int]]:
         if self._index is not None:
             return self._index
 
@@ -290,14 +290,14 @@ class PatchCdnSource(Source):
         self._index = index
         return index
 
-    def version(self) -> Union[Tuple[int, ...], None]:
+    def version(self) -> tuple[int, ...] | None:
         return parse_version(self._version)
 
     def bundle_names(self) -> Iterable[str]:
         return self.index().keys()
 
     @staticmethod
-    def get_tab(url: str) -> Dict[str, str]:
+    def get_tab(url: str) -> dict[str, str]:
         resp = get_session().get(url)
         if resp.status_code != 200:
             raise BlobDownloadError(

@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Any, Optional, Protocol, TypeVar, cast
+from typing import Any, Protocol, cast
 
 from UnityPy import classes
 from UnityPy.enums import ClassIDType
@@ -12,8 +12,6 @@ from .models import BoneFollower, Spine, SpineInfo
 from .quirks import apply_quirk
 
 logger = logging.getLogger("spine-extractor")
-
-_T = TypeVar("_T")
 
 
 # PGR-specific MonoBehaviour scripts. UnityPy resolves these fields from the
@@ -49,7 +47,7 @@ class _XEffectScaler(Protocol):
     DesignHeight: float
 
 
-def _script(obj: object, _proto: type[_T]) -> _T:
+def _script[T](obj: object, _proto: type[T]) -> T:
     """Reinterpret a UnityPy object as the given MonoBehaviour Protocol.
 
     This is an *unchecked* cast and performs no runtime or static validation:
@@ -102,7 +100,7 @@ def _record_spine_component(obj: classes.MonoBehaviour, spine: Spine) -> None:
         spine.found_size = (round(scaler.DesignWidth), round(scaler.DesignHeight))
 
 
-def crawl(obj: object, spine: Spine, seen: Optional[set] = None) -> None:
+def crawl(obj: object, spine: Spine, seen: set | None = None) -> None:
     if seen is None:
         seen = set()
 
@@ -163,7 +161,7 @@ def handle_skeleton(skeleton_object: classes.GameObject):
                         pos.y + father_pos.y,
                     )
         else:
-            sort_order: Optional[int] = getattr(obj, "m_SortingOrder", None)
+            sort_order: int | None = getattr(obj, "m_SortingOrder", None)
             if sort_order is not None:
                 spine.order = sort_order
 
@@ -272,7 +270,7 @@ def check_global_scale(obj: classes.Object):
 
     for entry in obj.m_Component:
         c = _component_ptr(entry).read()
-        if isinstance(c, classes.RectTransform) or isinstance(c, classes.Transform):
+        if isinstance(c, (classes.RectTransform, classes.Transform)):
             local_scale = c.m_LocalScale
             assert local_scale is not None
             scale, pid = local_scale.x, {_path_id(c)}

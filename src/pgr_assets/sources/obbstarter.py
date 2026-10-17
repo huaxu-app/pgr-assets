@@ -1,14 +1,14 @@
-from typing import Union, Dict, Iterable, Tuple
+from collections.abc import Iterable
 from zipfile import ZipFile
 
 import UnityPy
 
 from . import Source
-from ._index import read_textasset_bytes, loads_index, merge_index
+from ._index import loads_index, merge_index, read_textasset_bytes
 from .exceptions import SourceIndexError
 
 
-def _obb_resource_map(filenames) -> Dict[str, str]:
+def _obb_resource_map(filenames) -> dict[str, str]:
     resources = {name.split("/")[-1]: name for name in filenames if "matrix" in name}
     for name in filenames:
         if name.split("/")[-1] == "resources.assets":
@@ -21,7 +21,7 @@ class ObbSource(Source):
     _obb_path: str
     _filename: str
     _index: dict
-    _resources: Dict[str, str]
+    _resources: dict[str, str]
 
     def __init__(self, obb: str):
         self._obb_path = obb
@@ -36,19 +36,19 @@ class ObbSource(Source):
     def get_blob(self, blob: str) -> bytes:
         return ZipFile(self._obb_path, "r").read(self.resources()[blob])
 
-    def bundle_to_blob(self, bundle: str) -> Union[str, None]:
+    def bundle_to_blob(self, bundle: str) -> str | None:
         try:
             return self.index()[bundle][0]
         except KeyError:
             return None
 
-    def bundle_sha1(self, bundle: str) -> Union[str, None]:
+    def bundle_sha1(self, bundle: str) -> str | None:
         try:
             return self.index()[bundle][1]
         except KeyError:
             return None
 
-    def version(self) -> Union[Tuple[int, ...], None]:
+    def version(self) -> tuple[int, ...] | None:
         return None
 
     def index(self) -> dict:
@@ -65,7 +65,7 @@ class ObbSource(Source):
             loads_index(read_textasset_bytes(env, "assets/buildtemp/index.bytes"))
         )
 
-    def resources(self) -> Dict[str, str]:
+    def resources(self) -> dict[str, str]:
         return self._resources
 
     def bundle_names(self) -> Iterable[str]:

@@ -1,26 +1,26 @@
-import os
 import json
-from typing import Tuple, List
-from dataclasses import dataclass, field
-from PIL import Image
+import os
 from collections import Counter
+from dataclasses import dataclass, field
+
+from PIL import Image
 
 
 @dataclass
 class SpineInfo:
     name: str
     inner_name: str
-    position: Tuple[float, float] | None = None
-    size: Tuple[int, int] | None = None
+    position: tuple[float, float] | None = None
+    size: tuple[int, int] | None = None
     scale: float = 1
-    pivot: Tuple[float, float] = (0.5, 0.5)
+    pivot: tuple[float, float] = (0.5, 0.5)
 
     order: int = 0
     ids: set[int] = field(default_factory=set)
     transform_id: int = 0
     default_animation: str | None = None
 
-    textures: List[Tuple[str, Image.Image]] = field(default_factory=list)
+    textures: list[tuple[str, Image.Image]] = field(default_factory=list)
     atlas: str | None = None
     json: str | None = None
 
@@ -87,7 +87,7 @@ class Spine:
     name: str
     spines: list[SpineInfo] = field(default_factory=list)
     spine_order_list: list[int] | None = None
-    found_size: Tuple[int, int] | None = None
+    found_size: tuple[int, int] | None = None
     bone_followers: list[BoneFollower] = field(default_factory=list)
     render_quirk: str | None = None
 

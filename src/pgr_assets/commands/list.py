@@ -1,12 +1,11 @@
 import os
 import sys
-from typing import List
 
-from .helpers import build_source_set, filter_bundles, highlight, BaseArgs
+from .helpers import BaseArgs, build_source_set, filter_bundles, highlight
 
 
 class ListCommand(BaseArgs):
-    patterns: List[str]  # case-insensitive substring filters, AND-combined
+    patterns: list[str]  # case-insensitive substring filters, AND-combined
 
     def configure(self) -> None:
         super().configure()
@@ -22,7 +21,9 @@ def list_cmd(args: ListCommand):
     ss = build_source_set(args).sources
 
     # Color matches only on a TTY (like grep --color=auto), so piping stays clean.
-    use_color = bool(args.patterns) and sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+    use_color = (
+        bool(args.patterns) and sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+    )
 
     for bundle in filter_bundles(ss.list_all_bundles(), args.patterns):
         print(highlight(bundle, args.patterns) if use_color else bundle)

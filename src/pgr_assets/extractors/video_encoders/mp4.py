@@ -7,6 +7,9 @@ from . import BaseVideoEncoder, Track, check_encoder_available
 
 logger = logging.getLogger(__name__)
 
+# mp4 only stores ISO 639-2 and ffmpeg silently drops two-letter codes
+_MP4_LANGUAGES = {"ja": "jpn", "zh": "zho", "yue": "yue", "en": "eng"}
+
 
 class WebMp4Encoder(BaseVideoEncoder):
     encoder: str = "h264"
@@ -29,7 +32,7 @@ class WebMp4Encoder(BaseVideoEncoder):
         for i, a in enumerate(audio):
             ffmpeg.input(a.path)
             if a.language is not None:
-                meta[f"metadata:s:a:{i}"] = "language=" + a.language
+                meta[f"metadata:s:a:{i}"] = "language=" + _MP4_LANGUAGES[a.language]
 
         ffmpeg.output(
             output_file,

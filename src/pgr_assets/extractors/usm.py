@@ -1,8 +1,8 @@
-import io
 import logging
 import os
+import re
 import tempfile
-from typing import Any, BinaryIO, Union, cast
+from typing import Any, cast
 
 from pgr_assets.cri import HCA, USM
 from pgr_assets.extractors.video_encoders import BaseVideoEncoder, Track
@@ -14,19 +14,14 @@ class PGRUSM(USM):
     # Maps stream key (e.g. "@SFA_0") -> RFC 5646 language code.
     audio_language: dict[str, str]
 
-    def __init__(
-        self, filename: str | bytes | BinaryIO, key: Union[str, int, bool] = False
-    ):
+    def __init__(self, filename: str | bytes, key: str | int | bool = False):
         self.key = key
         self.audio_language = {}
-        # Ex's USM only accepts a path or a file-like, not raw bytes.
-        if isinstance(filename, (bytes, bytearray)):
-            filename = io.BytesIO(filename)
-        # Ex demuxes during construction. PGR's SFA chunks are HCA (left
-        # unmasked by Ex's reader); decode them once demux has populated output.
         super().__init__(
             filename, cast(str, key)
         )  # bad cast, but the lib is bad at typing
+        # SFA chunks are HCA the reader passes through still encrypted. Decode after demux.
+        self.demux()
         self._decode_sfa_audio()
 
     def _decode_sfa_audio(self) -> None:
@@ -38,7 +33,8 @@ class PGRUSM(USM):
                     cast(Any, v),  # cast: passed to bytearray, which accepts bytes too
                     key=cast(Any, self.key),
                 ).decode()
-                self.audio_language[k] = ffmpeg_language_code(filenames[i])
+                if (language := ffmpeg_language_code(filenames[i])) is not None:
+                    self.audio_language[k] = language
             i += 1
 
     def extract_video(self, base_outfile: str, encoders: list[BaseVideoEncoder]):
@@ -69,24 +65,18 @@ class PGRUSM(USM):
                 encoder.encode(base_outfile, videos, audios)
 
 
-def ffmpeg_language_code(text: str) -> str:
+_LANGUAGES = {
+    "jp": "ja",
+    "cn": "zh",
+    "ct": "yue",  # Cantonese
+    "en": "en",
+}
+
+
+def ffmpeg_language_code(filename: str) -> str | None:
     """
-    Detect language tag inside a string and return the
-    correct RFC 5646 language code.
+    RFC 5646 code from a CRID audio filename like 10003_Audio_02_CT.wav.
+    Single-track movies carry no token, so they get None.
     """
-
-    text_lower = text.lower()
-
-    mapping = {
-        "jp": "ja",  # Japanese
-        "en": "en",  # English
-        "cn": "zh",  # Chinese (Simplified/Mandarin)
-        "ct": "yue",  # Cantonese (Traditional Chinese audio)
-    }
-
-    for key, code in mapping.items():
-        if key in text_lower:
-            return code
-
-    # close enough usually?
-    return text_lower
+    m = re.search(r"_([a-z]{2})\.\w+$", filename.lower())
+    return _LANGUAGES.get(m[1]) if m else None

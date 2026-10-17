@@ -3,6 +3,7 @@ from typing import cast
 
 from pgr_assets.commands import bundles as bundles_mod
 from pgr_assets.commands import extract as extract_mod
+from pgr_assets.commands import models as models_mod
 from pgr_assets.commands.helpers import (
     BundleCommandArgs,
     build_source_set,
@@ -38,13 +39,21 @@ class DispatchContractTest(unittest.TestCase):
         args = _parse(["bundles", "--preset", "global", "--output", "/tmp/o", "foo.ab"])
         # The dispatch target is bundles_cmd, and selection must run on `args`.
         # `func` is injected by Tap's set_defaults, so it's read dynamically.
-        self.assertIs(getattr(args, "func"), bundles_mod.bundles_cmd)
+        self.assertIs(args.func, bundles_mod.bundles_cmd)
         ss = FakeSourceSet({"foo.ab", "bar.acb"})
         self.assertEqual({"foo.ab"}, selected_bundles(args, ss))
 
+    def test_models_dispatch_flattens_its_own_attributes(self):
+        args = _parse(
+            ["models", "--preset", "global", "--scope", "characters", "r1lifu"]
+        )
+        self.assertIs(args.func, models_mod.models_cmd)
+        self.assertEqual(["r1lifu"], args.filters)
+        self.assertEqual("characters", args.scope)
+
     def test_extract_dispatch_resolves_selection(self):
         args = _parse(["extract", "--preset", "global", "--output", "/tmp/o"])
-        self.assertIs(getattr(args, "func"), extract_mod.extract_cmd)
+        self.assertIs(args.func, extract_mod.extract_cmd)
         ss = FakeSourceSet({"a.acb", "b.ab", "c.usm"})
         # --all-audio selects only the .acb bundle.
         args.all_audio = True
@@ -84,22 +93,26 @@ class LogLevelPositionTest(unittest.TestCase):
 
     def test_after_subcommand(self):
         self.assertEqual(
-            "debug", self._level(["extract", "--output", "/tmp/o", "--log-level", "debug"])
+            "debug",
+            self._level(["extract", "--output", "/tmp/o", "--log-level", "debug"]),
         )
 
     def test_before_subcommand_not_clobbered(self):
         # The subparser's SUPPRESS default must not overwrite the value parsed before
         # the subcommand.
         self.assertEqual(
-            "debug", self._level(["--log-level", "debug", "extract", "--output", "/tmp/o"])
+            "debug",
+            self._level(["--log-level", "debug", "extract", "--output", "/tmp/o"]),
         )
 
     def test_absent_defaults_to_none(self):
         self.assertIsNone(self._level(["extract", "--output", "/tmp/o"]))
 
     def test_after_subcommand_on_list_and_spines(self):
-        for cmd in (["list", "--log-level", "warning"],
-                    ["spines", "--output", "/tmp/o", "--log-level", "warning"]):
+        for cmd in (
+            ["list", "--log-level", "warning"],
+            ["spines", "--output", "/tmp/o", "--log-level", "warning"],
+        ):
             self.assertEqual("warning", self._level(cmd))
 
 
@@ -112,10 +125,18 @@ class LocalSourceFlagsTest(unittest.TestCase):
 
     def test_flags_flatten_onto_args(self):
         args = _parse(
-            ["bundles", "--primary", "local", "--game-dir", "/games/pgr", "--output", "/tmp/o"]
+            [
+                "bundles",
+                "--primary",
+                "local",
+                "--game-dir",
+                "/games/pgr",
+                "--output",
+                "/tmp/o",
+            ]
         )
         self.assertEqual("local", args.primary)
-        self.assertEqual("/games/pgr", getattr(args, "game_dir"))
+        self.assertEqual("/games/pgr", args.game_dir)
 
     def test_local_without_game_dir_is_rejected(self):
         args = _parse(["bundles", "--primary", "local", "--output", "/tmp/o"])
@@ -125,7 +146,15 @@ class LocalSourceFlagsTest(unittest.TestCase):
 
     def test_game_dir_without_local_primary_is_rejected(self):
         args = _parse(
-            ["bundles", "--preset", "global", "--game-dir", "/games/pgr", "--output", "/tmp/o"]
+            [
+                "bundles",
+                "--preset",
+                "global",
+                "--game-dir",
+                "/games/pgr",
+                "--output",
+                "/tmp/o",
+            ]
         )
         with self.assertRaises(ValueError) as caught:
             build_source_set(args)

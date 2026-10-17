@@ -4,14 +4,16 @@ import logging
 import os
 
 import UnityPy
-from UnityPy.enums import ClassIDType
 from tqdm.auto import tqdm
+from UnityPy.enums import ClassIDType
 
 from pgr_assets.asset_paths import SPINE_BUNDLE_MARKER, SPINE_PREFAB_PREFIX
-from pgr_assets.extractors.spine.extractor import extract_spine
 from pgr_assets.extractors.spine import quirks
+from pgr_assets.extractors.spine.extractor import extract_spine
+from pgr_assets.logging_setup import log_to_queue, worker_logs
 from pgr_assets.sources import SourceSet
-from .helpers import build_source_set, BaseArgs
+
+from .helpers import BaseArgs, build_source_set
 
 logger = logging.getLogger("pgr-assets")
 
@@ -36,7 +38,12 @@ def download_env(env_dir: str, sources: SourceSet):
     bundles = [b for b in sources.list_all_bundles() if SPINE_BUNDLE_MARKER in b]
 
     errors = False
-    with concurrent.futures.ProcessPoolExecutor(max_workers=None) as executor:
+    with (
+        worker_logs() as (queue, level),
+        concurrent.futures.ProcessPoolExecutor(
+            initializer=log_to_queue, initargs=(queue, level)
+        ) as executor,
+    ):
         futures = [
             executor.submit(download_env_bundle, bundle, env_dir, sources)
             for bundle in bundles

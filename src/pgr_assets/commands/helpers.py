@@ -1,6 +1,7 @@
 import argparse
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Iterable, List, Literal, Optional, Sequence, Set
+from typing import Literal
 
 import UnityPy
 from tap import Tap
@@ -26,19 +27,22 @@ PRESETS = {
 
 
 class BaseArgs(Tap):
-    preset: Optional[
-        Literal["global", "korea", "japan", "taiwan", "china", "china-beta"]
-    ] = None  # Preset to use for primary and patch
+    preset: (
+        Literal["global", "korea", "japan", "taiwan", "china", "china-beta"] | None
+    ) = None  # Preset to use for primary and patch
     prerelease: bool = False  # Use the prerelease patch source, if available
 
-    primary: Optional[
-        Literal["obb", "local", "EN_PC", "KR_PC", "JP_PC", "TW_PC", "CN_PC", "CN_PC_BETA"]
-    ] = None  # Primary source to use
-    obb: Optional[str] = None  # Path to obb file. Only valid when primary is set to obb
-    game_dir: Optional[str] = (
+    primary: (
+        Literal[
+            "obb", "local", "EN_PC", "KR_PC", "JP_PC", "TW_PC", "CN_PC", "CN_PC_BETA"
+        ]
+        | None
+    ) = None  # Primary source to use
+    obb: str | None = None  # Path to obb file. Only valid when primary is set to obb
+    game_dir: str | None = (
         None  # Path to an installed game directory. Only valid when primary is 'local'
     )
-    patch: Optional[
+    patch: (
         Literal[
             "EN",
             "EN_PC",
@@ -53,10 +57,12 @@ class BaseArgs(Tap):
             "CN_PC_BETA",
             "CN_BETA",
         ]
-    ] = None  # Patch source to use
-    version: Optional[str] = None  # The client version to use. Inferred by default
+        | None
+    ) = None  # Patch source to use
+    version: str | None = None  # The client version to use. Inferred by default
+    cache_dir: str = ".env"  # Directory for cached bundles and source indexes
 
-    decrypt_key: Optional[str] = None  # Decryption key to use for asset bundles
+    decrypt_key: str | None = None  # Decryption key to use for asset bundles
 
     def configure(self) -> None:
         # Accept --log-level after the subcommand too; SUPPRESS stops the subparser
@@ -80,14 +86,14 @@ class BundleCommandArgs(BaseArgs):
     all_images: bool = False  # Extract all image bundles
     all: bool = False  # Extract all I can find
 
-    bundles: List[str]  # Bundles to extract
+    bundles: list[str]  # Bundles to extract
 
     def configure(self) -> None:
         super().configure()
         self.add_argument("bundles", nargs="*", help="Bundles to extract")
 
 
-def selected_bundles(args: BundleCommandArgs, ss: SourceSet) -> Set[str]:
+def selected_bundles(args: BundleCommandArgs, ss: SourceSet) -> set[str]:
     """Resolve the explicit bundle names plus everything matched by the
     ``--all*`` flags into a deduplicated set.
     """
@@ -112,7 +118,7 @@ HIGHLIGHT = "\033[01;31m"  # bold red, matching grep's default
 RESET = "\033[0m"
 
 
-def filter_bundles(bundles: Iterable[str], patterns: Sequence[str]) -> List[str]:
+def filter_bundles(bundles: Iterable[str], patterns: Sequence[str]) -> list[str]:
     """Sort bundles; with patterns, keep those matching every one as a
     case-insensitive substring of the full path (AND-combined)."""
     ordered = sorted(bundles)
@@ -126,7 +132,7 @@ def highlight(text: str, patterns: Sequence[str]) -> str:
     """Wrap every case-insensitive match of any pattern in ANSI color, grep-style.
     Overlapping matches are merged so codes never nest."""
     lowered = text.lower()
-    spans: List[tuple[int, int]] = []
+    spans: list[tuple[int, int]] = []
     for p in patterns:
         needle = p.lower()
         start = lowered.find(needle) if needle else -1
@@ -144,7 +150,7 @@ def highlight(text: str, patterns: Sequence[str]) -> str:
         else:
             merged.append((s, e))
 
-    out: List[str] = []
+    out: list[str] = []
     prev = 0
     for s, e in merged:
         out.append(text[prev:s])
@@ -171,7 +177,7 @@ class ResolvedSources:
     decrypt_key: str
 
 
-def _apply_decrypt_key(version: tuple[int, ...], override: Optional[str]) -> str:
+def _apply_decrypt_key(version: tuple[int, ...], override: str | None) -> str:
     """Pick the decryption key (an explicit override wins, otherwise it's derived
     from the version) and apply it to UnityPy's process-global state. Returns the
     key so worker processes that need to re-apply it can be handed the value."""
@@ -199,13 +205,13 @@ def build_source_set(args: BaseArgs) -> ResolvedSources:
     if args.game_dir is not None and primary != "local":
         raise ValueError("--game-dir is only valid together with --primary local")
 
-    source_set = SourceSet()
+    source_set = SourceSet(args.cache_dir)
 
     # When the version is known up front (always so for OBB), resolve and apply
     # the decrypt key *before* add_primary, since reading an OBB index bundle
     # needs it. Otherwise the version is inferred from the primary source below.
     explicit_version = parse_version(args.version) if args.version is not None else None
-    decrypt_key: Optional[str] = None
+    decrypt_key: str | None = None
     if explicit_version is not None:
         decrypt_key = _apply_decrypt_key(explicit_version, args.decrypt_key)
 
