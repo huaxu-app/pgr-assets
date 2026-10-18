@@ -137,6 +137,11 @@ class MountRow(TypedDict):
     skillNode: int | None
 
 
+class PartNpcRow(TypedDict):
+    target: str
+    node: int
+
+
 class TransitionsRow(TypedDict):
     default: float
     # By layer index. "*" is any state. Look up [from][to], then ["*"][to], then default.
@@ -150,6 +155,7 @@ class ContextRow(TypedDict):
     idle: StateRef | ClipRef | None
     hiddenNodes: NotRequired[list[int]]
     mounts: NotRequired[list[MountRow]]
+    partNpcs: NotRequired[list[PartNpcRow]]
     rotation: NotRequired[list[float]]
     transitions: NotRequired[TransitionsRow]
 

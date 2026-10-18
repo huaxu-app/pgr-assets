@@ -1,6 +1,7 @@
 import unittest
 
 from pgr_assets.models.fashion import Fashion, index_characters
+from pgr_assets.models.registry import ModelEntry, Registry
 from pgr_assets.models.scope.weapons import resolve_show_rotations
 
 PREFAB = "Assets/Product/Role/WeaponPrefab"
@@ -38,3 +39,11 @@ class FashionCharactersTest(unittest.TestCase):
             Fashion(4, 10, "own"),
         ]
         self.assertEqual({"own": 10}, index_characters(fashions))
+
+class RegistryPartsTest(unittest.TestCase):
+    def test_select_pulls_parts_in(self):
+        registry = Registry(
+            [ModelEntry(i, f"{i}.prefab") for i in ("a", "b", "c")], parts={"a": {"c", "gone"}}
+        )
+        self.assertEqual(["a", "c"], [e.id for e in registry.select(["a"])])
+        self.assertEqual(["b"], [e.id for e in registry.select(["b"])])

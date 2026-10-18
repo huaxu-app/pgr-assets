@@ -194,6 +194,8 @@ def describe_contexts(
                 {"slot": m.slot, "name": m.name, "node": m.node, "skillNode": m.skill_node}
                 for m in context.mounts
             ]
+        if context.part_npcs:
+            row["partNpcs"] = [{"target": p.target, "node": p.node} for p in context.part_npcs]
         if context.rotation is not None:
             row["rotation"] = [round5(value) for value in context.rotation]
         if context.name == FIGHT_CONTEXT and transitions is not None:

@@ -19,13 +19,12 @@ from pgr_assets.models.context import Context, RestPolicy
 from pgr_assets.models.model import Playback
 from pgr_assets.models.prefab import ObjectTag, Prefab
 from pgr_assets.models.registry import ModelEntry, Registry, read_text, resolve_stem
-from pgr_assets.models.tables import Tables
+from pgr_assets.models.tables import MODEL_BUNDLE, Tables
 from pgr_assets.tables import TableRow
 
 logger = logging.getLogger("pgr-assets")
 
 DORM_BUNDLE = "assets/temp/bytes/share/dormitory/character.ab"
-MODEL_BUNDLE = "assets/temp/bytes/client/resourcelut/model.ab"
 DORM_STYLE_TABLE = "dormcharacterstyle.tab.bytes"
 UIMODEL_TABLE = "uimodel.tab.bytes"
 DORM_STYLE_COLUMNS = ("Id", "Model")

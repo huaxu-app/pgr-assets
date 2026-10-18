@@ -42,6 +42,13 @@ class Mount:
 
 
 @dataclass(frozen=True)
+class PartNpc:
+    # The part's model directory, what the viewer fetches
+    target: str
+    node: int
+
+
+@dataclass(frozen=True)
 class Context:
     name: str
     base: str | None = None
@@ -54,6 +61,7 @@ class Context:
     clip: str | None = None
     hidden: tuple[int, ...] = ()
     mounts: tuple[Mount, ...] = ()
+    part_npcs: tuple[PartNpc, ...] = ()
     rest: RestPolicy = RestPolicy.IDLE_STATE
     # glTF xyzw the model root turns to.
     rotation: tuple[float, ...] | None = None

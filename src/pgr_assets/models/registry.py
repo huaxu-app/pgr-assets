@@ -1,4 +1,4 @@
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 from pgr_assets.models.clips import ClipSource
@@ -20,10 +20,20 @@ class ModelEntry:
 
 
 class Registry[E: ModelEntry]:
-    def __init__(self, entries: Iterable[E], characters: Collection[str] = ()):
+    def __init__(
+        self,
+        entries: Iterable[E],
+        characters: Collection[str] = (),
+        parts: Mapping[str, Collection[str]] | None = None,
+    ):
         self._entries = {entry.id: entry for entry in entries}
         # The entries a character reaches, where the scope knows.
         self.characters = frozenset(characters).intersection(self._entries)
+        # Picking a main picks what the game hangs on it
+        self._parts = {
+            main: sorted(set(targets).intersection(self._entries))
+            for main, targets in (parts or {}).items()
+        }
 
     def __len__(self) -> int:
         return len(self._entries)
@@ -42,6 +52,7 @@ class Registry[E: ModelEntry]:
                 picked.add(wanted)
                 continue
             picked.update(i for i in self._entries if wanted in i)
+        picked.update(part for main in list(picked) for part in self._parts.get(main, ()))
         return [self._entries[i] for i in sorted(picked)]
 
 

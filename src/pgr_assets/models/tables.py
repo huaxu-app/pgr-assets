@@ -16,8 +16,15 @@ NPC_TABLE = "npc.bytes"
 SKILL_BUNDLE = FIGHT + "skill.ab"
 SKILL_TABLE = "skill.bytes"
 NPCRES_TABLE = "npcres.tab.bytes"
+NPCPART_TABLE = "npcpart.bytes"
+CLIENT_NPC_BUNDLE = "assets/temp/bytes/client/fight/npc.ab"
+PART_MODEL_TABLE = "partnpcmodel.tab.bytes"
+SPECIAL_UI_MODEL_TABLE = "specialuimodel.tab.bytes"
 FASHION_BUNDLE = "assets/temp/bytes/share/fashion.ab"
 FASHION_TABLE = "fashion.tab.bytes"
+MODEL_BUNDLE = "assets/temp/bytes/client/resourcelut/model.ab"
+QUALITY_BUNDLE = "assets/temp/bytes/share/character/quality.ab"
+QUALITY_TABLE = "characterquality.tab.bytes"
 
 # The tables more than one loader reads. Everything else is dropped after its one
 # read. The fight tables alone hold some 600 MB of rows.

@@ -4,7 +4,7 @@ spawn hides, transitions, skills and clip events.
 """
 
 import logging
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -18,6 +18,7 @@ from pgr_assets.models.context import (
     FIGHT_CONTEXT,
     MENU_CONTEXT,
     Context,
+    PartNpc,
     resolve_hidden,
     resolve_mounts,
 )
@@ -27,12 +28,19 @@ from pgr_assets.models.events import (
     resolve_event_dispatch,
 )
 from pgr_assets.models.fashion import index_characters, read_fashions
+from pgr_assets.models.format import resolve_asset_id
 from pgr_assets.models.model import Playback
-from pgr_assets.models.prefab import Node, ObjectTag, Prefab
+from pgr_assets.models.partnpc import ROOT, PartLink, PartLinks, load_part_links
+from pgr_assets.models.prefab import Node, ObjectTag, Prefab, find_node
 from pgr_assets.models.registry import ModelEntry, Registry, read_paths, read_text
 from pgr_assets.models.skills import StateSkills, load_skills
 from pgr_assets.models.spawn.hides import ContextHides
-from pgr_assets.models.tables import NPC_BUNDLE, Tables, normalize_model_key
+from pgr_assets.models.tables import (
+    MODEL_BUNDLE,
+    NPC_BUNDLE,
+    Tables,
+    normalize_model_key,
+)
 from pgr_assets.models.transitions import (
     TransitionTables,
     load_transition_tables,
@@ -42,7 +50,6 @@ from pgr_assets.tables import TableRow
 
 logger = logging.getLogger("pgr-assets")
 
-MODEL_BUNDLE = "assets/temp/bytes/client/resourcelut/model.ab"
 MODEL_TABLE = "model.tab.bytes"
 MODEL_COLUMNS = (
     "Id",
@@ -110,10 +117,20 @@ def load_character_registry(tables: Tables, reach: Reach) -> Registry[CharacterE
     if entries and not characters:
         raise LookupError("fashion to npcres to model join produced no characters")
 
+    parts = load_part_links(tables, {entry.id for entry in entries}).targets()
     logger.debug(f"registry: {len(entries)} targets, {len(characters)} from fashion")
     if reach is Reach.FASHION:
-        entries = [entry for entry in entries if entry.id in characters]
-    return Registry(entries, characters)
+        reached = characters.union(*(parts.get(main, ()) for main in characters))
+        entries = [entry for entry in entries if entry.id in reached]
+    return Registry(entries, characters, parts)
+
+
+def read_model_dirs(tables: Tables) -> dict[str, str]:
+    return {
+        key: resolve_asset_id(path)
+        for model, path in tables.read(MODEL_BUNDLE, MODEL_TABLE, ("Id", "ModelPath"))
+        if (key := normalize_model_key(model)) and isinstance(path, str) and path.strip()
+    }
 
 
 def load_start_layers(tables: Tables) -> dict[str, str]:
@@ -136,9 +153,25 @@ def read_contexts(
     hidden_at_spawn: Collection[str],
     hidden_in_menu: Collection[str] = (),
     start_layer: str | None = None,
+    fight_parts: Sequence[PartLink] = (),
+    menu_parts: Sequence[PartLink] = (),
+    model_dirs: Mapping[str, str] | None = None,
 ) -> list[Context]:
     def have(path: str | None) -> str | None:
         return path if path in present else None
+
+    def attach(links: Sequence[PartLink]) -> tuple[PartNpc, ...]:
+        found = []
+        for link in links:
+            node = 0 if link.bone == ROOT else find_node(nodes, link.bone)
+            target = (model_dirs or {}).get(link.target)
+            if node is None:
+                logger.warning(f"part npc {link.target} on {entry.id}: no node {link.bone}")
+            elif target is None:
+                logger.warning(f"part npc {link.target} on {entry.id}: no model row")
+            else:
+                found.append(PartNpc(target, node))
+        return tuple(found)
 
     fight_mounts = resolve_mounts(FIGHT_MOUNT, nodes, tags)
     special = any(n.name == SPECIAL_CASE for n in nodes)
@@ -150,6 +183,7 @@ def read_contexts(
             start_layer=start_layer,
             hidden=resolve_hidden(hidden_at_spawn, nodes, tags),
             mounts=fight_mounts,
+            part_npcs=attach(fight_parts),
         ),
         Context(
             MENU_CONTEXT,
@@ -157,6 +191,7 @@ def read_contexts(
             clip=have(entry.ui_default_animation_path),
             hidden=resolve_hidden(hidden_in_menu, nodes, tags),
             mounts=resolve_mounts(MENU_MOUNT, nodes, tags) if special else fight_mounts,
+            part_npcs=attach(menu_parts),
         ),
     ]
 
@@ -173,6 +208,8 @@ class CharacterRun:
     characters: dict[str, int]
     skills: dict[int, StateSkills]
     start_layers: dict[str, str]
+    parts: PartLinks
+    model_dirs: dict[str, str]
 
     def build_playback(
         self,
@@ -192,6 +229,9 @@ class CharacterRun:
                 self.hides.find_spawn_hides(entry.id),
                 self.hides.find_menu_hides(entry.id),
                 self.start_layers.get(entry.id),
+                self.parts.fight.get(entry.id, ()),
+                self.parts.menu.get(entry.id, ()),
+                self.model_dirs,
             ),
             event_tables=read_event_tables(prefab, self.stop_anim_names),
             event_dispatch=resolve_event_dispatch(prefab),
@@ -210,6 +250,7 @@ class CharacterScope:
 
     def start(self, tables: Tables) -> CharacterRun:
         fashions = read_fashions(tables)
+        model_dirs = read_model_dirs(tables)
         return CharacterRun(
             hides=ContextHides.load(tables, fashions),
             transitions=load_transition_tables(tables),
@@ -217,6 +258,8 @@ class CharacterScope:
             characters=index_characters(fashions),
             skills=load_skills(tables),
             start_layers=load_start_layers(tables),
+            parts=load_part_links(tables, model_dirs.keys()),
+            model_dirs=model_dirs,
         )
 
     def describe(self, entry: CharacterEntry) -> str:
