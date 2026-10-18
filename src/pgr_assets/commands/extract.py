@@ -38,6 +38,7 @@ class ExtractCommand(BundleCommandArgs):
     convert_binary_tables: bool = False  # Convert supported binary tables to CSV
     raw_audio: bool = False  # Write WAV audio instead of MP3
     hls: bool = False  # Write HLS variants alongside MP4 videos
+    no_webp: bool = False  # Skip WebP images and thumbnails, write PNG only
 
     cache: str | None = None  # Path to sha1 cache file
     write_settings: bool = (
@@ -58,6 +59,7 @@ class State:
     cues: CueRegistry
     decrypt_key: str
     convert_binary_tables: bool
+    webp: bool
     audio_format: AudioFormat
     game_version: tuple[int, int]
     video_encoders: list[BaseVideoEncoder]
@@ -73,6 +75,7 @@ class State:
         self.output_dir = args.output
         self.decrypt_key = decrypt_key
         self.convert_binary_tables = args.convert_binary_tables
+        self.webp = not args.no_webp
         self.audio_format = WAV if args.raw_audio else MP3
         self.ambiguous_images = {}
 
@@ -94,6 +97,7 @@ def process_bundle(bundle: str, state: State):
         game_version=state.game_version,
         allow_binary_table_convert=state.convert_binary_tables,
         ambiguous_images=state.ambiguous_images,
+        webp=state.webp,
     )
 
 

@@ -22,6 +22,7 @@ def extract_bundle(
     game_version: tuple[int, int],
     allow_binary_table_convert=False,
     ambiguous_images: dict[str, str] | None = None,
+    webp: bool = True,
 ):
     ambiguous_images = ambiguous_images or {}
 
@@ -43,7 +44,9 @@ def extract_bundle(
             elif obj.type.name in ["Texture2D", "Sprite"]:
                 data = cast(Texture2D | Sprite, obj.read())
                 for stem in resolve_image_stems(path, ambiguous_images):
-                    save_image(data.image, os.path.join(output_dir, *stem.split("/")))
+                    save_image(
+                        data.image, os.path.join(output_dir, *stem.split("/")), webp
+                    )
                 logger.debug(f"Extracted {path}")
             elif obj.type.name == "TextAsset":
                 text = cast(TextAsset, obj.read())
@@ -95,8 +98,10 @@ def save_image_file(img: Image.Image, dest: str, **options):
     os.replace(tmp, dest)
 
 
-def save_image(img: Image.Image, dest: str):
+def save_image(img: Image.Image, dest: str, webp: bool = True):
     save_image_file(img, dest + ".png")
+    if not webp:
+        return
     save_image_file(img, dest + ".webp", lossless=False, quality=80)
 
     path = dest.replace(os.sep, "/")
