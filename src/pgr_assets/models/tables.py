@@ -23,6 +23,7 @@ SPECIAL_UI_MODEL_TABLE = "specialuimodel.tab.bytes"
 FASHION_BUNDLE = "assets/temp/bytes/share/fashion.ab"
 FASHION_TABLE = "fashion.tab.bytes"
 MODEL_BUNDLE = "assets/temp/bytes/client/resourcelut/model.ab"
+UIMODEL_TABLE = "uimodel.tab.bytes"
 QUALITY_BUNDLE = "assets/temp/bytes/share/character/quality.ab"
 QUALITY_TABLE = "characterquality.tab.bytes"
 

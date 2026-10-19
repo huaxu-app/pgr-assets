@@ -19,14 +19,13 @@ from pgr_assets.models.context import Context, RestPolicy
 from pgr_assets.models.model import Playback
 from pgr_assets.models.prefab import ObjectTag, Prefab
 from pgr_assets.models.registry import ModelEntry, Registry, read_text, resolve_stem
-from pgr_assets.models.tables import MODEL_BUNDLE, Tables
+from pgr_assets.models.tables import MODEL_BUNDLE, UIMODEL_TABLE, Tables
 from pgr_assets.tables import TableRow
 
 logger = logging.getLogger("pgr-assets")
 
 DORM_BUNDLE = "assets/temp/bytes/share/dormitory/character.ab"
 DORM_STYLE_TABLE = "dormcharacterstyle.tab.bytes"
-UIMODEL_TABLE = "uimodel.tab.bytes"
 DORM_STYLE_COLUMNS = ("Id", "Model")
 UIMODEL_COLUMNS = ("Id", "ModelPath", "DisplayControllerPath", "UiDefaultAnimationPath")
 ROOM_PREFAB = "assets/product/role/room/prefab/"

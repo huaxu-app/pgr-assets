@@ -1,11 +1,12 @@
 """
-Characters and everything else model.tab.bytes names: fight and menu contexts,
-spawn hides, transitions, skills and clip events.
+Characters and everything else model.tab.bytes names, plus the menu-only
+prefabs uimodel.tab.bytes adds: fight and menu contexts, spawn hides,
+transitions, skills and clip events
 """
 
 import logging
-from collections.abc import Collection, Mapping, Sequence
-from dataclasses import dataclass, field
+from collections.abc import Collection, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field, replace
 from enum import Enum
 
 from pgr_assets.models.clips import (
@@ -28,16 +29,23 @@ from pgr_assets.models.events import (
     resolve_event_dispatch,
 )
 from pgr_assets.models.fashion import index_characters, read_fashions
-from pgr_assets.models.format import resolve_asset_id
+from pgr_assets.models.format import ROLE_PREFIX, resolve_asset_id
 from pgr_assets.models.model import Playback
 from pgr_assets.models.partnpc import ROOT, PartLink, PartLinks, load_part_links
 from pgr_assets.models.prefab import Node, ObjectTag, Prefab, find_node
-from pgr_assets.models.registry import ModelEntry, Registry, read_paths, read_text
+from pgr_assets.models.registry import (
+    ModelEntry,
+    Registry,
+    read_paths,
+    read_text,
+    resolve_stem,
+)
 from pgr_assets.models.skills import StateSkills, load_skills
 from pgr_assets.models.spawn.hides import ContextHides
 from pgr_assets.models.tables import (
     MODEL_BUNDLE,
     NPC_BUNDLE,
+    UIMODEL_TABLE,
     Tables,
     normalize_model_key,
 )
@@ -60,6 +68,16 @@ MODEL_COLUMNS = (
     "UiDefaultAnimationPath",
     "LevelControllerPath",
 )
+UIMODEL_COLUMNS = (
+    "Id",
+    "ModelPath",
+    "HXModelPath",
+    "ControllerPath",
+    "DisplayControllerPath",
+    "UiDefaultAnimationPath",
+)
+# Weapons, dorm chibis, DLC chips and scene props in uimodel belong to other scopes or none
+UI_PREFAB = ROLE_PREFIX + "charaterprefab/"
 LAYER_TABLE = "npcanimatorlayerinfo.tab.bytes"
 SPECIAL_CASE = "SpecialWeaponCase"
 FIGHT_MOUNT = "WeaponCase"
@@ -108,11 +126,34 @@ def read_entry(row: TableRow) -> CharacterEntry | None:
     )
 
 
+def read_ui_entries(
+    rows: Iterable[TableRow], known: Collection[CharacterEntry]
+) -> list[CharacterEntry]:
+    """
+    The menu-only prefabs uimodel names and model doesn't, keyed on the prefab
+    stem since the row Id often names a sibling prefab
+    """
+    paths = {entry.model_path for entry in known}
+    ids = {entry.id for entry in known}
+    found: dict[str, CharacterEntry] = {}
+    for row in rows:
+        entry = read_entry(row)
+        if entry is None or not entry.model_path.startswith(UI_PREFAB):
+            continue
+        stem = resolve_stem(entry.model_path)
+        if entry.model_path in paths or stem in ids or stem in found:
+            continue
+        found[stem] = replace(entry, id=stem)
+    return list(found.values())
+
+
 def load_character_registry(tables: Tables, reach: Reach) -> Registry[CharacterEntry]:
     rows = tables.read_rows(MODEL_BUNDLE, MODEL_TABLE, MODEL_COLUMNS)
     entries = [entry for row in rows if (entry := read_entry(row)) is not None]
     if len(entries) != len(rows):
         logger.warning(f"{len(rows) - len(entries)} model rows had no Id or ModelPath")
+    uimodels = tables.read_rows(MODEL_BUNDLE, UIMODEL_TABLE, UIMODEL_COLUMNS)
+    entries += read_ui_entries(uimodels, entries)
     characters = {fashion.model for fashion in read_fashions(tables)}
     if entries and not characters:
         raise LookupError("fashion to npcres to model join produced no characters")
