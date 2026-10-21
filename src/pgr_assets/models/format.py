@@ -154,6 +154,7 @@ class ContextRow(TypedDict):
     entry: StateRef | ClipRef | None
     idle: StateRef | ClipRef | None
     hiddenNodes: NotRequired[list[int]]
+    stateHides: NotRequired[dict[str, list[int]]]
     mounts: NotRequired[list[MountRow]]
     partNpcs: NotRequired[list[PartNpcRow]]
     rotation: NotRequired[list[float]]
@@ -200,6 +201,7 @@ class ManifestDoc(TypedDict):
     controllers: list[ControllerRow]
     clips: list[ClipRow]
     contexts: dict[str, ContextRow]
+    defaultContext: NotRequired[str]
     eventTables: NotRequired[EventTablesRow]
     boneSync: NotRequired[BoneSyncRow]
 

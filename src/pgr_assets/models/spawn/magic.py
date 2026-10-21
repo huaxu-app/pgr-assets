@@ -22,7 +22,7 @@ def apply_magic(
             apply_buff(world, buff_id)
     elif magic.name == "AddBehavior":
         for behavior_id in parse_ids(magic.params):
-            world.run_behavior(behavior_id)
+            world.run_behavior(behavior_id, lasting=duration != 0)
 
 
 def apply_buff(world: "NpcState", buff_id: int) -> None:

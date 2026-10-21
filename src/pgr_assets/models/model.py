@@ -22,6 +22,7 @@ class Playback:
     transitions: Transitions | None = None
     character: int | None = None
     skills: StateSkills = field(default_factory=dict)
+    default_context: str | None = None
 
 
 @dataclass

@@ -55,10 +55,14 @@ class NpcState:
         for by in self.hides.values():
             by.pop(kind, None)
 
-    def run_behavior(self, behavior_id: int) -> None:
-        if behavior_id not in self._behaviors_run:
-            self._behaviors_run.add(behavior_id)
-            self.interpreter.run_setup(behavior_id, self.notebook)
+    def run_behavior(self, behavior_id: int, lasting: bool = True) -> None:
+        if behavior_id in self._behaviors_run:
+            return
+        self._behaviors_run.add(behavior_id)
+        self.interpreter.run_setup(behavior_id, self.notebook)
+        # A zero length buff drops its behavior on the spot, so adding it again runs it again
+        if not lasting:
+            self._behaviors_run.discard(behavior_id)
 
     def action(self, name: str, parts: list[str], notebook: Notebook) -> bool | None:
         def ids(token: str) -> list[int]:
@@ -69,6 +73,9 @@ class NpcState:
 
         if name in CG_SHOW_STATE:
             return False
+        # Yes, you exist. Vonnegut's form II hide opens with this
+        if name == "CheckNpc":
+            return parts[0] == SELF
         if name == "CheckExistBuffByKind":
             kind = notebook.value(parts[1]) if len(parts) > 1 else None
             return parts[0] == SELF and kind is not None and int(kind) in self.buffs
@@ -101,13 +108,16 @@ class NpcState:
 
 
 def simulate_spawn(
-    tables: FightTables, born_magics: Iterable[int], facts: Facts = NO_FACTS
+    tables: FightTables,
+    born_magics: Iterable[int],
+    facts: Facts = NO_FACTS,
+    entry_magics: Iterable[int] = (),
 ) -> NpcState:
     """
     The state XRLNpc.Load sees: born magics applied and every setup tree they
-    add run once.
+    add run once. Then the Born skill the lead role opens a fight with
     """
     state = NpcState(tables, facts)
-    for magic_id in born_magics:
+    for magic_id in (*born_magics, *entry_magics):
         magic.apply_magic(state, magic_id)
     return state

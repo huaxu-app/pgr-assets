@@ -1,7 +1,8 @@
 """
 What each context switches off before the first frame.
 
-Fight: XRLNpc.Load hides every joint the spawn state hid, see npcstate.spawn.
+Fight: XRLNpc.Load hides every joint the spawn state hid, then the Born skill
+hides its share, see npcstate.simulate_spawn
 Menu: the UI applies a per-action node list from uimodelboneactive when a model loads.
 """
 
@@ -34,6 +35,9 @@ class ContextHides:
             if action in rows:
                 return rows[action]
         return ()
+
+    def find_state_hides(self, model_id: str) -> dict[str, tuple[str, ...]]:
+        return self.menu.get(model_id, {})
 
     @classmethod
     def load(
@@ -68,11 +72,13 @@ def collect_spawn_hides(
         for npc in own[fashion.character]:
             facts = Facts(fashion_id=fashion.id, npc_kind=npc.kind)
             fight.setdefault(fashion.model, set()).update(
-                simulate_spawn(tables, npc.born_magics, facts).collect_hidden_tags()
+                simulate_spawn(
+                    tables, npc.born_magics, facts, npc.entry_magics
+                ).collect_hidden_tags()
             )
     for npc in tables.npcs:
         if npc.model_id and npc.model_id not in fight:
             fight[npc.model_id] = simulate_spawn(
-                tables, npc.born_magics, Facts(npc_kind=npc.kind)
+                tables, npc.born_magics, Facts(npc_kind=npc.kind), npc.entry_magics
             ).collect_hidden_tags()
     return {m: tuple(sorted(t)) for m, t in fight.items() if t}

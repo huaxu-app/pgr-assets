@@ -3,8 +3,8 @@ A context is one of the situations the game shows a model in, with the controlle
 it plays, the nodes it hides and the mounts it hangs weapons on.
 """
 
-from collections.abc import Collection, Sequence
-from dataclasses import dataclass
+from collections.abc import Collection, Mapping, Sequence
+from dataclasses import dataclass, field
 from enum import Enum
 
 import numpy as np
@@ -60,6 +60,8 @@ class Context:
     # The UI's own clip, played without a controller.
     clip: str | None = None
     hidden: tuple[int, ...] = ()
+    # Nodes hidden while a state plays, by state name, uimodelboneactive's per-animation sets
+    state_hidden: Mapping[str, tuple[int, ...]] = field(default_factory=dict)
     mounts: tuple[Mount, ...] = ()
     part_npcs: tuple[PartNpc, ...] = ()
     rest: RestPolicy = RestPolicy.IDLE_STATE

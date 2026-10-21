@@ -1,7 +1,7 @@
 """
 Characters and everything else model.tab.bytes names, plus the menu-only
-prefabs uimodel.tab.bytes adds: fight and menu contexts, spawn hides,
-transitions, skills and clip events
+prefabs uimodel.tab.bytes adds: fight and menu contexts, one per uimodel row,
+spawn hides, transitions, skills and clip events
 """
 
 import logging
@@ -75,6 +75,7 @@ UIMODEL_COLUMNS = (
     "ControllerPath",
     "DisplayControllerPath",
     "UiDefaultAnimationPath",
+    "HideNodeName",
 )
 # Weapons, dorm chibis, DLC chips and scene props in uimodel belong to other scopes or none
 UI_PREFAB = ROLE_PREFIX + "charaterprefab/"
@@ -92,12 +93,26 @@ class Reach(Enum):
 
 
 @dataclass(frozen=True)
+class UiRow:
+    """
+    One uimodel row on its prefab: a UI presentation with its own idle and hides
+    """
+
+    id: str
+    display_controller_path: str | None = None
+    ui_default_animation_path: str | None = None
+    # Raw GameObject names, the engine matches them case and all
+    hide_names: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class CharacterEntry(ModelEntry):
     hx_model_path: str | None = None
     controller_path: str | None = None
     display_controller_path: str | None = None
     ui_default_animation_path: str | None = None
     level_controller_paths: tuple[str, ...] = field(default_factory=tuple)
+    ui_rows: tuple[UiRow, ...] = ()
 
     def list_clip_sources(self) -> list[ClipSource]:
         return [
@@ -107,6 +122,8 @@ class CharacterEntry(ModelEntry):
                 *self.level_controller_paths,
             ),
             *make_clip_sources(self.ui_default_animation_path),
+            *make_controller_sources(*(r.display_controller_path for r in self.ui_rows)),
+            *make_clip_sources(*(r.ui_default_animation_path for r in self.ui_rows)),
         ]
 
 
@@ -126,25 +143,66 @@ def read_entry(row: TableRow) -> CharacterEntry | None:
     )
 
 
-def read_ui_entries(
+def read_ui_row(row: TableRow) -> UiRow | None:
+    row_id = read_text(row, "Id")
+    if row_id is None:
+        return None
+    names = row.get("HideNodeName")
+    return UiRow(
+        id=row_id,
+        display_controller_path=read_text(row, "DisplayControllerPath"),
+        ui_default_animation_path=read_text(row, "UiDefaultAnimationPath"),
+        hide_names=tuple(n for n in names or () if isinstance(n, str) and n),
+    )
+
+
+def attach_ui_rows(
     rows: Iterable[TableRow], known: Collection[CharacterEntry]
 ) -> list[CharacterEntry]:
     """
-    The menu-only prefabs uimodel names and model doesn't, keyed on the prefab
-    stem since the row Id often names a sibling prefab
+    Every uimodel row onto the prefab it names. A prefab only uimodel names becomes
+    an entry keyed on its stem, read from its first row, since the row Id often
+    names a sibling prefab
     """
-    paths = {entry.model_path for entry in known}
-    ids = {entry.id for entry in known}
-    found: dict[str, CharacterEntry] = {}
+    by_path: dict[str, list[UiRow]] = {}
+    firsts: dict[str, CharacterEntry] = {}
     for row in rows:
         entry = read_entry(row)
-        if entry is None or not entry.model_path.startswith(UI_PREFAB):
+        ui = read_ui_row(row)
+        if entry is None or ui is None or not entry.model_path.startswith(UI_PREFAB):
             continue
-        stem = resolve_stem(entry.model_path)
-        if entry.model_path in paths or stem in ids or stem in found:
+        by_path.setdefault(entry.model_path, []).append(ui)
+        firsts.setdefault(entry.model_path, entry)
+
+    paths = {entry.model_path for entry in known}
+    ids = {entry.id for entry in known}
+    found = [replace(e, ui_rows=tuple(by_path.get(e.model_path, ()))) for e in known]
+    added: set[str] = set()
+    for path, first in firsts.items():
+        if path in paths:
             continue
-        found[stem] = replace(entry, id=stem)
-    return list(found.values())
+        stem = resolve_stem(path)
+        if stem in ids or stem in added:
+            logger.warning(f"uimodel prefab {path} shares stem {stem}, skipped")
+            continue
+        added.add(stem)
+        found.append(replace(first, id=stem, ui_rows=tuple(by_path[path])))
+    return found
+
+
+def pick_default_context(
+    model_path: str, rows: Collection[str], names: Collection[str]
+) -> str:
+    """
+    The row the game shows for the bare prefab name, else its UI row, else the
+    first numbered one, else the model table's own menu. A row that went
+    missing was a copy of menu, so menu it is
+    """
+    stem = resolve_stem(model_path)
+    for wanted in (stem, f"{stem}ui", f"{stem}ui1"):
+        if wanted in rows:
+            return wanted if wanted in names else MENU_CONTEXT
+    return MENU_CONTEXT
 
 
 def load_character_registry(tables: Tables, reach: Reach) -> Registry[CharacterEntry]:
@@ -153,7 +211,7 @@ def load_character_registry(tables: Tables, reach: Reach) -> Registry[CharacterE
     if len(entries) != len(rows):
         logger.warning(f"{len(rows) - len(entries)} model rows had no Id or ModelPath")
     uimodels = tables.read_rows(MODEL_BUNDLE, UIMODEL_TABLE, UIMODEL_COLUMNS)
-    entries += read_ui_entries(uimodels, entries)
+    entries = attach_ui_rows(uimodels, entries)
     characters = {fashion.model for fashion in read_fashions(tables)}
     if entries and not characters:
         raise LookupError("fashion to npcres to model join produced no characters")
@@ -193,6 +251,7 @@ def read_contexts(
     present: Collection[str],
     hidden_at_spawn: Collection[str],
     hidden_in_menu: Collection[str] = (),
+    state_hides: Mapping[str, Collection[str]] | None = None,
     start_layer: str | None = None,
     fight_parts: Sequence[PartLink] = (),
     menu_parts: Sequence[PartLink] = (),
@@ -216,7 +275,22 @@ def read_contexts(
 
     fight_mounts = resolve_mounts(FIGHT_MOUNT, nodes, tags)
     special = any(n.name == SPECIAL_CASE for n in nodes)
-    return [
+    menu_mounts = resolve_mounts(MENU_MOUNT, nodes, tags) if special else fight_mounts
+    state_hidden = {
+        state: found
+        for state, names in (state_hides or {}).items()
+        if (found := resolve_hidden(names, nodes, tags))
+    }
+    menu = Context(
+        MENU_CONTEXT,
+        base=have(entry.display_controller_path),
+        clip=have(entry.ui_default_animation_path),
+        hidden=resolve_hidden(hidden_in_menu, nodes, tags),
+        state_hidden=state_hidden,
+        mounts=menu_mounts,
+        part_npcs=attach(menu_parts),
+    )
+    contexts = [
         Context(
             FIGHT_CONTEXT,
             base=have(entry.controller_path),
@@ -226,15 +300,33 @@ def read_contexts(
             mounts=fight_mounts,
             part_npcs=attach(fight_parts),
         ),
-        Context(
-            MENU_CONTEXT,
-            base=have(entry.display_controller_path),
-            clip=have(entry.ui_default_animation_path),
-            hidden=resolve_hidden(hidden_in_menu, nodes, tags),
-            mounts=resolve_mounts(MENU_MOUNT, nodes, tags) if special else fight_mounts,
-            part_npcs=attach(menu_parts),
-        ),
+        menu,
     ]
+    tag_names = {tag.name for tag in tags}
+    for row in entry.ui_rows:
+        if any(context.name == row.id for context in contexts):
+            logger.warning(f"{entry.id}: context {row.id} named twice, first kept")
+            continue
+        # An empty tag row is the engine's answer, only a name nothing carries is a miss
+        missed = [
+            n
+            for n in row.hide_names
+            if n not in tag_names and find_node(nodes, n) is None
+        ]
+        if missed:
+            logger.warning(f"{entry.id}: {row.id} hides {missed}, not on the prefab")
+        context = Context(
+            row.id,
+            base=have(row.display_controller_path),
+            clip=have(row.ui_default_animation_path),
+            hidden=resolve_hidden(row.hide_names, nodes, tags),
+            mounts=menu_mounts,
+            part_npcs=attach(menu_parts),
+        )
+        # Half the boss UI rows are the model row again with a UI on the end, one look not two
+        if replace(context, name=MENU_CONTEXT) != menu:
+            contexts.append(context)
+    return contexts
 
 
 @dataclass(frozen=True)
@@ -261,24 +353,31 @@ class CharacterRun:
         clips: ClipInventory,
     ) -> Playback:
         character = self.characters.get(entry.id)
+        contexts = read_contexts(
+            entry,
+            prefab.nodes,
+            tags,
+            clips.sources,
+            self.hides.find_spawn_hides(entry.id),
+            self.hides.find_menu_hides(entry.id),
+            self.hides.find_state_hides(entry.id),
+            self.start_layers.get(entry.id),
+            self.parts.fight.get(entry.id, ()),
+            self.parts.menu.get(entry.id, ()),
+            self.model_dirs,
+        )
         return Playback(
-            contexts=read_contexts(
-                entry,
-                prefab.nodes,
-                tags,
-                clips.sources,
-                self.hides.find_spawn_hides(entry.id),
-                self.hides.find_menu_hides(entry.id),
-                self.start_layers.get(entry.id),
-                self.parts.fight.get(entry.id, ()),
-                self.parts.menu.get(entry.id, ()),
-                self.model_dirs,
-            ),
+            contexts=contexts,
             event_tables=read_event_tables(prefab, self.stop_anim_names),
             event_dispatch=resolve_event_dispatch(prefab),
             transitions=load_transitions(tables, entry.id, self.transitions),
             character=character,
             skills={} if character is None else self.skills.get(character, {}),
+            default_context=pick_default_context(
+                entry.model_path,
+                {row.id for row in entry.ui_rows},
+                {context.name for context in contexts},
+            ),
         )
 
 
@@ -313,5 +412,6 @@ class CharacterScope:
                 entry.display_controller_path or "",
                 entry.ui_default_animation_path or "",
                 ",".join(entry.level_controller_paths),
+                ",".join(row.id for row in entry.ui_rows),
             ]
         )

@@ -48,6 +48,8 @@ def build_manifest(model: Model, target: str, model_stored: int | None) -> Manif
         doc["modelStoredBytes"] = model_stored
     if playback.character is not None:
         doc["characterId"] = playback.character
+    if playback.default_context is not None:
+        doc["defaultContext"] = playback.default_context
     if playback.event_tables is not None:
         doc["eventTables"] = playback.event_tables.as_dict()
     if playback.bone_sync is not None:
@@ -189,6 +191,10 @@ def describe_contexts(
             row["levels"] = [resolve_asset_id(path) for path in context.levels]
         if context.hidden:
             row["hiddenNodes"] = list(context.hidden)
+        if context.state_hidden:
+            row["stateHides"] = {
+                state: list(nodes) for state, nodes in context.state_hidden.items()
+            }
         if context.mounts:
             row["mounts"] = [
                 {"slot": m.slot, "name": m.name, "node": m.node, "skillNode": m.skill_node}

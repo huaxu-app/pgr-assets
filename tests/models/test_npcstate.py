@@ -8,7 +8,14 @@ from pgr_assets.models.spawn.behavior import (
     SEQUENCE,
     SWITCH,
 )
-from pgr_assets.models.spawn.fighttables import Buff, FightTables, Magic, Npc, TreeNode
+from pgr_assets.models.spawn.fighttables import (
+    Buff,
+    FightTables,
+    Magic,
+    Npc,
+    TreeNode,
+    read_keyframe_magics,
+)
 from pgr_assets.models.spawn.npcstate import Facts, simulate_spawn
 
 
@@ -128,3 +135,15 @@ class SpawnTest(unittest.TestCase):
         self.assertEqual(
             {"WeaponCase1"}, simulate_spawn(_tables(nodes), [100]).collect_hidden_tags()
         )
+
+
+class KeyframeTest(unittest.TestCase):
+    def test_entry_magics_go_in_frame_order_and_guarded_ones_stay_out(self):
+        keys = [
+            "100|Magic|190841|0|",
+            "0|Effect|FxBorn|||",
+            "45|Magic|190843|0|",
+            "10|Magic|182394|0|",
+        ]
+        conditions = ["nil", "nil", "nil", "1823960"]
+        self.assertEqual([190843, 190841], read_keyframe_magics(keys, conditions))

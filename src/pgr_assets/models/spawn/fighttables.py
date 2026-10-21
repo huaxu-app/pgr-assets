@@ -14,6 +14,28 @@ from pgr_assets.models.tables import (
 
 logger = logging.getLogger("pgr-assets")
 
+KEYFRAME_TABLE = "skillkeyframe.bytes"
+ENTRY_ANIMATION = "Born"
+
+
+def read_keyframe_magics(keys: list[str], conditions: list[str]) -> list[int]:
+    """
+    The Magic cells of a skill's keyframes in frame order, skipping any with a
+    condition since nobody knows the answer at entry
+    """
+    found: list[tuple[int, int]] = []
+    for i, cell in enumerate(keys):
+        parts = cell.split("|")
+        # A busted cell skips, it doesn't get to kill the whole run
+        if len(parts) < 3 or not parts[0].lstrip("-").isdigit():
+            continue
+        frame, kind, magic_id = parts[:3]
+        condition = conditions[i] if i < len(conditions) else "nil"
+        if kind == "Magic" and condition in ("nil", "") and magic_id.isdigit():
+            found.append((int(frame), int(magic_id)))
+    found.sort(key=lambda f: f[0])
+    return [magic_id for _, magic_id in found]
+
 
 @dataclass(frozen=True, slots=True)
 class TreeNode:
@@ -44,6 +66,8 @@ class Npc:
     kind: int
     model_id: str
     born_magics: tuple[int, ...]
+    # The Born skill the fight plays on entry, in the order it lands
+    entry_magics: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -58,10 +82,40 @@ class FightTables:
 
     @classmethod
     def load(cls, tables: Tables) -> "FightTables":
+        skill_rows = tables.read(
+            SKILL_BUNDLE,
+            SKILL_TABLE,
+            ("Id", "Animation", "CastMagicIds", "FinalMagicIds"),
+        )
+        skills = {
+            i: (*parse_ids(cast), *parse_ids(final))
+            for i, _, cast, final in skill_rows
+        }
+        born = {
+            i: (parse_ids(cast), parse_ids(final))
+            for i, animation, cast, final in skill_rows
+            if animation == ENTRY_ANIMATION
+        }
+        keyframes = {
+            i: read_keyframe_magics(keys or [], conditions or [])
+            for i, keys, conditions in tables.read(
+                SKILL_BUNDLE, KEYFRAME_TABLE, ("Id", "Key", "Condition")
+            )
+            if i in born
+        }
+        entries = {
+            i: (*cast, *keyframes.get(i, ()), *final) for i, (cast, final) in born.items()
+        }
         npcs = [
-            Npc(i, kind or 0, normalize_model_key(model) or "", tuple(parse_ids(born)))
-            for i, kind, model, born in tables.read(
-                NPC_BUNDLE, NPC_TABLE, ("Id", "Kind", "ModelId", "BornMagic")
+            Npc(
+                i,
+                kind or 0,
+                normalize_model_key(model) or "",
+                tuple(parse_ids(born_magics)),
+                tuple(m for s in parse_ids(skill_ids) for m in entries.get(s, ())),
+            )
+            for i, kind, model, born_magics, skill_ids in tables.read(
+                NPC_BUNDLE, NPC_TABLE, ("Id", "Kind", "ModelId", "BornMagic", "SkillId")
             )
         ]
         prefix_roots = {
@@ -101,12 +155,6 @@ class FightTables:
                 FIGHT + "buff.ab",
                 "buff.bytes",
                 ("Id", "Magic", "TriggerMagic", "Duration", "Kind", "Cover"),
-            )
-        }
-        skills = {
-            i: (*parse_ids(cast), *parse_ids(final))
-            for i, cast, final in tables.read(
-                SKILL_BUNDLE, SKILL_TABLE, ("Id", "CastMagicIds", "FinalMagicIds")
             )
         }
         logger.debug(

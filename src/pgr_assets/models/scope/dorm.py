@@ -4,7 +4,6 @@ that share it.
 """
 
 import logging
-import re
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from dataclasses import dataclass, field
@@ -31,7 +30,6 @@ UIMODEL_COLUMNS = ("Id", "ModelPath", "DisplayControllerPath", "UiDefaultAnimati
 ROOM_PREFAB = "assets/product/role/room/prefab/"
 ROOM_ANIMATION = "assets/product/role/room/animation"
 DORM_CONTEXT = "dorm"
-SUFFIX = re.compile(r"md\d{6}(.*)$")
 
 # A context name to its controller and bare clip.
 DormContexts = dict[str, tuple[str | None, str | None]]
@@ -47,11 +45,6 @@ class DormEntry(ModelEntry):
             *make_controller_sources(*(base for base, _ in self.contexts.values())),
             *make_clip_sources(*(clip for _, clip in self.contexts.values())),
         ]
-
-
-def _read_suffix(name: str) -> str:
-    found = SUFFIX.search(name.lower())
-    return found.group(1) if found else ""
 
 
 def read_dorm_entries(
@@ -82,11 +75,9 @@ def read_dorm_entries(
         stem = resolve_stem(path)
         base = read_text(row, "DisplayControllerPath")
         clip = read_text(row, "UiDefaultAnimationPath")
-        name = _read_suffix(str(row.get("Id", ""))) or (
-            base and _read_suffix(resolve_stem(base))
-        )
-        if not name:
-            logger.warning(f"uimodel {row.get('Id')}: no context name, skipped")
+        name = read_text(row, "Id")
+        if name is None:
+            logger.warning(f"uimodel row on {stem} has no Id, skipped")
             continue
         if name in contexts[stem]:
             logger.warning(f"{stem}: context {name} named twice, first kept")
@@ -135,11 +126,14 @@ class DormRun:
         tags: list[ObjectTag],
         clips: ClipInventory,
     ) -> Playback:
+        contexts = read_contexts(entry, clips.sources)
         # Only the fight loader strips clip events, and no dorm chibi goes through it.
         return Playback(
-            contexts=read_contexts(entry, clips.sources),
+            contexts=contexts,
             event_dispatch="native",
             character=entry.character,
+            # Style rows land first, so dorm leads whenever it exists
+            default_context=contexts[0].name if contexts else None,
         )
 
 
