@@ -4,6 +4,7 @@ from itertools import chain
 
 import numpy as np
 
+from pgr_assets.lazyenv import LazyEnv
 from pgr_assets.models import coords
 from pgr_assets.models.alternates import (
     ALTERNATE_SCRIPTS,
@@ -15,7 +16,6 @@ from pgr_assets.models.alternates import (
 from pgr_assets.models.builtin import NAMES, read_builtin_geometry, resolve_builtin_key
 from pgr_assets.models.clips import read_clips
 from pgr_assets.models.emission import FLOW_SCRIPT, EmissionFlow, read_emission_flow
-from pgr_assets.models.env import ModelEnv
 from pgr_assets.models.events import SOUND_SCRIPT, SYNC_SCRIPT
 from pgr_assets.models.faces import FACE_SCRIPT, FACE_SLOT, read_faces
 from pgr_assets.models.files import Publisher
@@ -69,7 +69,7 @@ class BuildTools:
     What every target of one run builds with.
     """
 
-    env: ModelEnv
+    env: LazyEnv
     tables: Tables
     cubemaps: CubemapLibrary
     textures: TextureEncoding

@@ -1,10 +1,11 @@
 import json
 import logging
 import os
+from dataclasses import dataclass
 from typing import Any, Protocol, cast
 
+from PIL import Image
 from UnityPy import classes
-from UnityPy.enums import ClassIDType
 
 from pgr_assets.converters.unity_to_json import jsonify
 
@@ -24,6 +25,7 @@ class _AtlasAsset(Protocol):
 
 
 class _SkeletonDataAsset(Protocol):
+    scale: float
     skeletonJSON: classes.PPtr[classes.TextAsset]
     atlasAssets: list[classes.PPtr[_AtlasAsset]]
 
@@ -48,7 +50,8 @@ class _XEffectScaler(Protocol):
 
 
 def _script[T](obj: object, _proto: type[T]) -> T:
-    """Reinterpret a UnityPy object as the given MonoBehaviour Protocol.
+    """
+    Reinterpret a UnityPy object as the given MonoBehaviour Protocol.
 
     This is an *unchecked* cast and performs no runtime or static validation:
     the Protocols only document the expected field shapes. The caller is
@@ -69,7 +72,38 @@ def _component_ptr(
     return entry.component if isinstance(entry, classes.ComponentPair) else entry[1]
 
 
-def texture_from_material(mat: classes.Material):
+# SkeletonGraphic draws in canvas pixels, 100 per unit
+GRAPHIC_PIXELS_PER_UNIT = 100
+
+SKELETON_CLASSES = frozenset({"SkeletonGraphic", "SkeletonRenderer"})
+
+
+@dataclass(frozen=True)
+class Placement:
+    """
+    Where a GameObject sits in prefab root space, and whether it draws at all.
+    """
+
+    active: bool = True
+    position: tuple[float, float] = (0.0, 0.0)
+    scale: float = 1.0
+
+    # x scale stands in for both axes and rotation is ignored, no 4.7.0 rig needs either
+    def child(self, transform: classes.Transform, active: bool) -> "Placement":
+        pos = transform.m_LocalPosition
+        scale = transform.m_LocalScale
+        assert pos is not None and scale is not None
+        return Placement(
+            self.active and active,
+            (
+                self.position[0] + pos.x * self.scale,
+                self.position[1] + pos.y * self.scale,
+            ),
+            self.scale * scale.x,
+        )
+
+
+def texture_from_material(mat: classes.Material) -> tuple[str, Image.Image] | None:
     for name, tex_env in mat.m_SavedProperties.m_TexEnvs:
         if name == "_MainTex":
             if tex_env.m_Texture.path_id == 0:
@@ -79,88 +113,82 @@ def texture_from_material(mat: classes.Material):
     return None
 
 
-def _record_spine_component(obj: classes.MonoBehaviour, spine: Spine) -> None:
-    class_name = obj.m_Script.read().m_ClassName
+def crawl(
+    go: classes.GameObject,
+    spine: Spine,
+    parent: Placement,
+    followers: tuple[BoneFollower, ...] = (),
+) -> None:
+    """
+    Walk the prefab hierarchy depth first, parents before children, which is
+    also the order uGUI draws in. Every skeleton below a BoneFollowerGraphic
+    rides its bone
+    """
+    components = [_component_ptr(x).read() for x in go.m_Component]
+    transform = next(
+        c
+        for c in components
+        if isinstance(c, (classes.RectTransform, classes.Transform))
+    )
+    here = parent.child(transform, bool(go.m_IsActive))
+    scripts = [
+        (c, c.m_Script.read().m_ClassName)
+        for c in components
+        if isinstance(c, classes.MonoBehaviour)
+    ]
 
-    if hasattr(obj, "skeletonDataAsset"):
-        go = obj.m_GameObject.read()
-        if go.m_IsActive:
-            skeleton = handle_skeleton(_script(go, classes.GameObject))
+    # A follower also carries a skeleton on its own GameObject
+    for obj, class_name in scripts:
+        if class_name == "BoneFollowerGraphic":
+            follower = handle_bone_follower(obj)
+            spine.bone_followers.append(follower)
+            followers = (*followers, follower)
+
+    for obj, class_name in scripts:
+        if class_name in SKELETON_CLASSES:
+            if not here.active:
+                continue
+            skeleton = handle_skeleton(go, components, here)
             if skeleton is not None:
                 spine.spines.append(skeleton)
-    elif class_name == "BoneFollowerGraphic":
-        spine.bone_followers.append(handle_bone_follower(obj))
-    elif class_name == "UiObject":
-        logger.debug("Got UiObject -> likely Movie Spine")
-        ui = _script(obj, _UiObject)
-        spine.spine_order_list = [x.path_id for x in ui.ObjList]
-        spine.found_size = (1000, 1080)
-    elif class_name == "XEffectScaler":
-        scaler = _script(obj, _XEffectScaler)
-        spine.found_size = (round(scaler.DesignWidth), round(scaler.DesignHeight))
+                for follower in followers:
+                    follower.spines.add(skeleton.name)
+        elif class_name == "UiObject":
+            logger.debug("Got UiObject -> likely Movie Spine")
+            ui = _script(obj, _UiObject)
+            spine.spine_order_list = [x.path_id for x in ui.ObjList]
+            spine.found_size = (1000, 1080)
+        elif class_name == "XEffectScaler":
+            scaler = _script(obj, _XEffectScaler)
+            spine.found_size = (round(scaler.DesignWidth), round(scaler.DesignHeight))
+
+    for child in transform.m_Children or []:
+        crawl(
+            cast(classes.GameObject, child.read().m_GameObject.read()),
+            spine,
+            here,
+            followers,
+        )
 
 
-def crawl(obj: object, spine: Spine, seen: set | None = None) -> None:
-    if seen is None:
-        seen = set()
-
-    if isinstance(obj, classes.PPtr):
-        if obj.path_id == 0 and obj.file_id == 0:
-            return
-        if obj.path_id in seen:
-            return
-        seen.add(obj.path_id)
-        try:
-            obj = obj.read()
-        except (AttributeError, FileNotFoundError):
-            return
-
-    if isinstance(obj, classes.MonoBehaviour):
-        _record_spine_component(obj, spine)
-
-    if isinstance(obj, classes.ComponentPair):
-        crawl(obj.component, spine, seen)
-    elif isinstance(obj, classes.Object):
-        for k, v in obj.__dict__.items():
-            if k == "m_Shader":
-                continue  # don't descend into shader graphs
-            crawl(v, spine, seen)
-    elif isinstance(obj, (list, tuple)):
-        for item in obj:
-            crawl(item, spine, seen)
-    elif isinstance(obj, dict):
-        for item in obj.values():
-            crawl(item, spine, seen)
-    # Everything else (scalars, Vector*/Quaternionf/ColorRGBA, strings) is a
-    # leaf with nothing to traverse.
-
-
-def handle_skeleton(skeleton_object: classes.GameObject):
+def handle_skeleton(
+    skeleton_object: classes.GameObject,
+    components: list[Any],
+    here: Placement,
+) -> SpineInfo | None:
     spine = SpineInfo("<unknown>", skeleton_object.m_Name)
     spine.ids.add(_path_id(skeleton_object))
+    # float32 soup, 0.01 * 100 lands on 0.99999998 otherwise
+    spine.position = (round(here.position[0], 4), round(here.position[1], 4))
 
-    for obj in (_component_ptr(x).read() for x in skeleton_object.m_Component):
+    for obj in components:
         spine.ids.add(_path_id(obj))
 
         if isinstance(obj, classes.RectTransform):
-            pos = obj.m_LocalPosition
-            scale = obj.m_LocalScale
             pivot = obj.m_Pivot
-            assert pos is not None and scale is not None and pivot is not None
-            spine.position = (pos.x, pos.y)
-            spine.set_scale(scale.x)
+            assert pivot is not None
             spine.pivot = (pivot.x, pivot.y)
-            spine.transform_id = _path_id(obj)
-            if obj.m_Father is not None and obj.m_Father.path_id != 0:
-                father = obj.m_Father.read()
-                if isinstance(father, classes.RectTransform):
-                    father_pos = father.m_LocalPosition
-                    assert father_pos is not None
-                    spine.position = (
-                        pos.x + father_pos.x,
-                        pos.y + father_pos.y,
-                    )
-        else:
+        elif not isinstance(obj, classes.Transform):
             sort_order: int | None = getattr(obj, "m_SortingOrder", None)
             if sort_order is not None:
                 spine.order = sort_order
@@ -175,16 +203,19 @@ def handle_skeleton(skeleton_object: classes.GameObject):
         if anim:
             spine.default_animation = anim
 
-        # Data lives on SkeletonGraphic (UI) or SkeletonRenderer (mesh).
-        if hasattr(obj, "skeletonDataAsset"):
+        if script_type in SKELETON_CLASSES:
             sk = _script(obj, _SkeletonGraphic)
             # Try get the texture from the material, this is one route, the other is through the atlas assets
-            if hasattr(obj, "m_Material") and sk.m_Material.path_id != 0:
+            if script_type == "SkeletonGraphic" and sk.m_Material.path_id != 0:
                 tex = texture_from_material(sk.m_Material.read())
                 if tex is not None:
                     spine.textures.append(tex)
 
             skeleton_data_asset = sk.skeletonDataAsset.read()
+            scale = here.scale * skeleton_data_asset.scale
+            if script_type == "SkeletonGraphic":
+                scale *= GRAPHIC_PIXELS_PER_UNIT
+            spine.scale = round(scale, 4)
 
             skeleton_json = skeleton_data_asset.skeletonJSON.read()
             spine.name = skeleton_json.m_Name
@@ -208,9 +239,9 @@ def handle_skeleton(skeleton_object: classes.GameObject):
         return None
 
 
-def handle_bone_follower(obj: classes.MonoBehaviour):
+def handle_bone_follower(obj: classes.MonoBehaviour) -> BoneFollower:
     follower_script = _script(obj, _BoneFollowerGraphic)
-    bone_follower = BoneFollower(
+    return BoneFollower(
         follower_script.boneName,
         follower_script.skeletonGraphic.read()
         .skeletonDataAsset.read()
@@ -218,102 +249,17 @@ def handle_bone_follower(obj: classes.MonoBehaviour):
         .m_Name,
     )
 
-    for child in walk_object_children(obj.m_GameObject):
-        if isinstance(child, classes.RectTransform):
-            bone_follower.transforms.add(_path_id(child))
-
-    return bone_follower
-
-
-def walk_object_children(obj: object):
-    """
-    Walks through an object, but only uses known *descendant* properties, rather than trying to go every which way up and down
-    :param obj: Unity game object
-    :return: yields all objects it passes that arent PPtr's or ComponentPair's
-    """
-    seen = set()
-    queue: list[Any] = [obj]
-
-    while queue:
-        current = queue.pop(0)
-        if isinstance(current, classes.PPtr):
-            if current.path_id == 0 and current.file_id == 0:
-                continue
-
-            if current.path_id in seen:
-                continue
-            seen.add(current.path_id)
-
-            try:
-                current = current.read()
-            except AttributeError:
-                continue
-            except FileNotFoundError:
-                continue
-
-        node: Any = current
-        if isinstance(node, classes.ComponentPair):
-            queue.append(node.component)
-            continue
-
-        yield node
-
-        if hasattr(node, "m_Children"):
-            queue.extend(node.m_Children)
-        if hasattr(node, "m_Component"):
-            queue.extend(node.m_Component)
-
-
-def check_global_scale(obj: classes.Object):
-    if not isinstance(obj, classes.GameObject):
-        return None, None
-
-    for entry in obj.m_Component:
-        c = _component_ptr(entry).read()
-        if isinstance(c, (classes.RectTransform, classes.Transform)):
-            local_scale = c.m_LocalScale
-            assert local_scale is not None
-            scale, pid = local_scale.x, {_path_id(c)}
-            children = c.m_Children
-            if (
-                children is not None
-                and len(children) == 1
-                and children[0].type == ClassIDType.RectTransform
-            ):
-                pid.add(children[0].path_id)
-                child = children[0].read()
-                child_scale = child.m_LocalScale
-                assert child_scale is not None
-                extra_scale = child_scale.x
-                if extra_scale > 2:
-                    extra_scale /= 100
-                scale *= extra_scale
-            return scale, pid
-    return None, None
-
 
 def extract_spine(
-    name: str, obj: list[classes.Object], output_dir: str, write_json=False
-):
+    name: str,
+    obj: list[classes.GameObject],
+    output_dir: str,
+    write_json: bool = False,
+) -> None:
     spine = Spine(name)
 
-    last_obj = obj[-1] if obj else None
     for o in obj:
-        crawl(o, spine)
-
-    if last_obj is not None:
-        global_scale, gs_pid = check_global_scale(last_obj)
-        if gs_pid is not None:
-            assert global_scale is not None
-            if global_scale > 2:
-                global_scale /= 100
-            logger.debug(f"found global scale {global_scale} at path {gs_pid}")
-            if global_scale != 1:
-                if any(x.transform_id in gs_pid for x in spine.spines):
-                    logger.debug("Found spine with global scale, skipping")
-                else:
-                    for spine_info in spine.spines:
-                        spine_info.scale *= global_scale
+        crawl(o, spine, Placement())
 
     spine.finalize()
     apply_quirk(spine)
@@ -323,12 +269,14 @@ def extract_spine(
     else:
         logger.debug(f"Processed {name} but no spines found")
 
-    if write_json and last_obj is not None:
+    # jsonify follows every PPtr and faults in whatever the prefab reaches,
+    # fine for an opt-in debugging dump
+    if write_json and obj:
         json_dir = os.path.join(output_dir, name)
         os.makedirs(json_dir, exist_ok=True)
         with open(os.path.join(json_dir, "jsonified.json"), "w") as f:
             json.dump(
-                jsonify(last_obj),
+                jsonify(obj[-1]),
                 f,
                 indent=4,
                 default=lambda x: f"<unserializable {type(x).__name__}>",

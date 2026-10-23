@@ -136,7 +136,7 @@ def apply_quirk(spine: Spine) -> None:
 
     if quirk.get("all_scale") is not None:
         for s in spine.spines:
-            s.set_scale(quirk["all_scale"])
+            s.scale = quirk["all_scale"]
 
     if quirk.get("size") is not None:
         spine.found_size = quirk["size"]

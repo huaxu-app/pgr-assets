@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from pgr_assets.converters.binarytable.table import BinaryTable
-from pgr_assets.models.env import ModelEnv
+from pgr_assets.lazyenv import LazyEnv
 from pgr_assets.tables import TableRow, read_script_bytes
 
 FIGHT = "assets/temp/bytes/share/fight/"
@@ -73,7 +73,7 @@ class Tables:
     SHARED ones are parsed once and kept.
     """
 
-    def __init__(self, env: ModelEnv, version: tuple[int, ...]) -> None:
+    def __init__(self, env: LazyEnv, version: tuple[int, ...]) -> None:
         self._env = env
         self.version = (version[0], version[1])
         self._parsed: dict[tuple[str, str], BinaryTable] = {}

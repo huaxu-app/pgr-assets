@@ -1,13 +1,14 @@
 import json
 import logging
 import os
-import tempfile
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from threading import BoundedSemaphore
 from typing import Any
 
 import brotli
+
+from pgr_assets.store import write_bytes
 
 from .format import BROTLI_SUFFIX, MANIFEST_FILE, ManifestDoc
 
@@ -16,17 +17,6 @@ logger = logging.getLogger("pgr-assets")
 # Payloads waiting on brotli at once. At q11 the clip walk outruns the pool and
 # would park a whole target's clips in the queue.
 QUEUED_PAYLOADS = 8
-
-
-def write_bytes(path: str, payload: bytes) -> None:
-    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path) or ".", prefix=".tmp-")
-    try:
-        with os.fdopen(fd, "wb") as handle:
-            handle.write(payload)
-        os.replace(tmp, path)
-    except BaseException:
-        os.unlink(tmp)
-        raise
 
 
 def write_json(path: str, document: object) -> None:

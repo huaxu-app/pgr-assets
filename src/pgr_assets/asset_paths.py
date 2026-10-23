@@ -42,5 +42,5 @@ TEXTURE_BUNDLE_MARKER = "assets/product/texture/"
 # Location of spine prefabs within the Unity environment.
 SPINE_PREFAB_PREFIX = "assets/product/ui/spine/"
 
-# Substring identifying spine-related bundles to mirror into the env dir.
-SPINE_BUNDLE_MARKER = "spine"
+# Bundles holding spine prefabs, `spine.ab` itself carries the login one
+SPINE_BUNDLE_PREFIX = "assets/product/ui/spine"

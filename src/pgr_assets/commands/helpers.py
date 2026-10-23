@@ -1,5 +1,6 @@
 import argparse
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Literal
 
@@ -7,7 +8,9 @@ import UnityPy
 from tap import Tap
 
 from pgr_assets.asset_paths import TEMP_BUNDLE_MARKER, TEXTURE_BUNDLE_MARKER
+from pgr_assets.lazyenv import LazyEnv
 from pgr_assets.sources import SourceError, SourceSet
+from pgr_assets.store import BundleStore
 from pgr_assets.versions import parse_version
 
 DECRYPTION_KEYS = [
@@ -237,3 +240,19 @@ def build_source_set(args: BaseArgs) -> ResolvedSources:
         )
 
     return ResolvedSources(source_set, version, decrypt_key)
+
+
+@contextmanager
+def open_lazy_env(args: BaseArgs) -> Iterator[tuple[ResolvedSources, LazyEnv]]:
+    """
+    Resolve the sources and open a LazyEnv over every bundle they list,
+    cached under `--cache-dir`
+    """
+    resolved = build_source_set(args)
+    resolved.sources.warm()
+    catalog = {b.lower() for b in resolved.sources.list_all_bundles()}
+    env = LazyEnv(BundleStore(resolved.sources, args.cache_dir), catalog)
+    try:
+        yield resolved, env
+    finally:
+        env.close()

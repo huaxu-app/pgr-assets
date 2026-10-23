@@ -15,8 +15,8 @@ from UnityPy.classes.generated import (
 )
 from UnityPy.classes.generated import Renderer as UnityRenderer
 
+from pgr_assets.lazyenv import LazyEnv
 from pgr_assets.models import coords
-from pgr_assets.models.env import ModelEnv
 from pgr_assets.models.unity import (
     make_pointer,
     read_pointer,
@@ -82,7 +82,7 @@ class Prefab:
 
     @classmethod
     def read(
-        cls, env: ModelEnv, bundle: str, path: str, scripts: Collection[str] = ()
+        cls, env: LazyEnv, bundle: str, path: str, scripts: Collection[str] = ()
     ) -> "Prefab":
         root: Any = env.find_object(bundle, path)
         prefab = cls(name=root.m_Name, wanted_scripts=scripts)

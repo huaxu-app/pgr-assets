@@ -1,6 +1,6 @@
 """
 Stateless readers over UnityPy objects: identities, pointers, typetrees, curves.
-Nothing here loads a bundle, that's ModelEnv's job.
+Nothing here loads a bundle, that's LazyEnv's job.
 """
 
 import logging
@@ -11,28 +11,11 @@ from typing import Any
 from PIL import Image
 from UnityPy.classes import PPtr
 from UnityPy.export import Texture2DConverter
-from UnityPy.files import BundleFile, SerializedFile
 from UnityPy.helpers import ResourceReader
 
 from pgr_assets.models.format import Curve
 
 logger = logging.getLogger("pgr-assets")
-
-
-def list_serialized_files(bundle_file: Any) -> dict[str, SerializedFile]:
-    """
-    The parsed files in a bundle, keyed by cab name.
-
-    A bundle also carries raw readers for resource streams, which hold no
-    objects, and env.files can hold entries that are not bundles at all.
-    """
-    if not isinstance(bundle_file, BundleFile):
-        return {}
-    return {
-        str(cab): f
-        for cab, f in bundle_file.files.items()
-        if isinstance(f, SerializedFile)
-    }
 
 
 def resolve_asset_key(obj: Any) -> str:
@@ -143,20 +126,6 @@ def decode_image(texture: Any, data: bytes, size: int) -> Image.Image:
     return Texture2DConverter.parse_image_data(
         data, size, size, texture.m_TextureFormat, reader.version, reader.platform
     )
-
-
-def list_dependencies(bundle_file: Any) -> list[str]:
-    """
-    The m_Dependencies of every AssetBundle object in one loaded bundle.
-    """
-    deps: list[str] = []
-    for serialized in list_serialized_files(bundle_file).values():
-        # SerializedFile.__init__ already parsed this. Re-reading the object
-        # costs a full m_Container parse, thousands of PPtrs on a big bundle.
-        bundle: Any = serialized.assetbundle
-        if bundle is not None:
-            deps += bundle.m_Dependencies or []
-    return [d.lower() for d in deps]
 
 
 # A Unity stepped key carries an infinite tangent, and a bare `Infinity` in the JSON

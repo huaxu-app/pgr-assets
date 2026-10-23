@@ -3,7 +3,7 @@ import os
 
 import msgpack
 
-from pgr_assets.models.files import write_bytes
+from pgr_assets.store import write_bytes
 
 logger = logging.getLogger("pgr-assets")
 

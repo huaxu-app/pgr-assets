@@ -1,13 +1,10 @@
 import logging
-from contextlib import closing
 
-from pgr_assets.commands.helpers import BaseArgs, build_source_set
-from pgr_assets.models.env import ModelEnv
+from pgr_assets.commands.helpers import BaseArgs, open_lazy_env
 from pgr_assets.models.export import COMPRESS_QUALITY, export_models
 from pgr_assets.models.scope import SCOPES
 from pgr_assets.models.tables import Tables
 from pgr_assets.models.texture import TEXTURE_ENCODINGS
-from pgr_assets.store import BundleStore
 
 logger = logging.getLogger("pgr-assets")
 
@@ -63,14 +60,9 @@ class ModelsCommand(BaseArgs):
 
 
 def models_cmd(args: ModelsCommand) -> None:
-    resolved = build_source_set(args)
-    resolved.sources.warm()
-    catalog = {b.lower() for b in resolved.sources.list_all_bundles()}
     scope = SCOPES[args.scope]
 
-    with closing(
-        ModelEnv(BundleStore(resolved.sources, args.cache_dir), catalog)
-    ) as env:
+    with open_lazy_env(args) as (resolved, env):
         tables = Tables(env, resolved.version)
         registry = scope.load_registry(tables)
         selected = registry.select(args.filters)

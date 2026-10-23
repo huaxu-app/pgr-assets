@@ -4,9 +4,9 @@ import shutil
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
+from pgr_assets.lazyenv import LazyEnv
 from pgr_assets.models.build import BuildTools, build_target
 from pgr_assets.models.cache import BuildCache, Marker
-from pgr_assets.models.env import ModelEnv
 from pgr_assets.models.files import (
     Publisher,
     dump_json,
@@ -154,7 +154,7 @@ def _prune_cubemaps(output: str, cubemaps: CubemapLibrary) -> None:
 
 
 def export_models[E: ModelEntry](
-    env: ModelEnv,
+    env: LazyEnv,
     tables: Tables,
     entries: list[E],
     output: str,

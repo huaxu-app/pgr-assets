@@ -1,68 +1,23 @@
-import concurrent.futures
-import hashlib
 import logging
-import os
 
-import UnityPy
 from tqdm.auto import tqdm
+from UnityPy import classes
 from UnityPy.enums import ClassIDType
 
-from pgr_assets.asset_paths import SPINE_BUNDLE_MARKER, SPINE_PREFAB_PREFIX
+from pgr_assets.asset_paths import SPINE_BUNDLE_PREFIX, SPINE_PREFAB_PREFIX
 from pgr_assets.extractors.spine import quirks
 from pgr_assets.extractors.spine.extractor import extract_spine
-from pgr_assets.logging_setup import log_to_queue, worker_logs
-from pgr_assets.sources import SourceSet
+from pgr_assets.lazyenv import LazyEnv
 
-from .helpers import BaseArgs, build_source_set
+from .helpers import BaseArgs, open_lazy_env
 
 logger = logging.getLogger("pgr-assets")
 
-
-def download_env_bundle(bundle: str, env_dir: str, sources: SourceSet):
-    os.makedirs(os.path.join(env_dir, os.path.dirname(bundle)), exist_ok=True)
-    out_file = os.path.join(env_dir, bundle)
-
-    if os.path.exists(out_file):
-        with open(out_file, "rb") as f:
-            sha1 = hashlib.sha1(f.read()).hexdigest()
-        sha1_expect = sources.bundle_sha1(bundle)
-        if sha1 == sha1_expect:
-            return
-
-    with open(out_file, "wb") as f:
-        f.write(sources.find_bundle(bundle))
-
-
-def download_env(env_dir: str, sources: SourceSet):
-    logger.info(f"Downloading Unity environment to {env_dir}")
-    bundles = [b for b in sources.list_all_bundles() if SPINE_BUNDLE_MARKER in b]
-
-    errors = False
-    with (
-        worker_logs() as (queue, level),
-        concurrent.futures.ProcessPoolExecutor(
-            initializer=log_to_queue, initargs=(queue, level)
-        ) as executor,
-    ):
-        futures = [
-            executor.submit(download_env_bundle, bundle, env_dir, sources)
-            for bundle in bundles
-        ]
-        for future in tqdm(
-            concurrent.futures.as_completed(futures), total=len(futures)
-        ):
-            try:
-                future.result()
-            except Exception:
-                logger.exception("Failed to download bundle")
-                errors = True
-
-    if errors:
-        raise RuntimeError("Failed to download all bundles")
+LOGIN_PREFAB = "spinelogin"
+LOGIN_BUNDLE = SPINE_BUNDLE_PREFIX + ".ab"
 
 
 class SpinesCommand(BaseArgs):
-    env_dir: str = ".env"  # Directory to use for storing the Unity environment
     output: str  # Directory to output the extracted spines to
     only_login: bool = False
     with_json: bool = False
@@ -72,43 +27,77 @@ class SpinesCommand(BaseArgs):
         self.set_defaults(func=spines_cmd)
 
 
-def spines_cmd(args: SpinesCommand):
-    sources = build_source_set(args).sources
+def read_prefab(env: LazyEnv, bundle: str, name: str) -> classes.GameObject:
+    path = SPINE_PREFAB_PREFIX + name + ".prefab"
+    return env.find_object(bundle, path, ClassIDType.GameObject)
 
-    download_env(args.env_dir, sources)
-    env = UnityPy.Environment(args.env_dir)
 
-    all_prefabs = {
-        k: v
-        for k, v in env.container.items()
-        if k.endswith(".prefab") and v.type == ClassIDType.GameObject
-    }
-    if args.only_login:
-        login_prefab = SPINE_PREFAB_PREFIX + "spinelogin.prefab"
-        all_prefabs = {login_prefab: all_prefabs[login_prefab]}
+def list_prefabs(env: LazyEnv, bundle: str) -> list[str]:
+    return [
+        path.removeprefix(SPINE_PREFAB_PREFIX).removesuffix(".prefab")
+        for path in env.list_paths(bundle)
+        if path.startswith(SPINE_PREFAB_PREFIX) and path.endswith(".prefab")
+    ]
 
-    for k, v in all_prefabs.items():
-        name = k.removeprefix(SPINE_PREFAB_PREFIX).removesuffix(".prefab")
-        if name == "spinelogin":
-            version = sources.version()
-            assert version is not None
-            name += "/%d-%d" % version[:2]
 
-        if quirks.should_skip(name):
-            logger.info("Skipping %s", name)
-            continue
+def spines_cmd(args: SpinesCommand) -> None:
+    owners: dict[str, str] = {}
 
-        if (glue := quirks.find_glue(name)) is not None:
-            logger.info("Quirk triggered: glue %s", glue.name)
-            objects = [
-                env.container[SPINE_PREFAB_PREFIX + layer + ".prefab"].read()
-                for layer in glue.layers
+    with open_lazy_env(args) as (resolved, env):
+        major, minor = resolved.version[:2]
+        login_name = f"{LOGIN_PREFAB}/{major}-{minor}"
+        bundles = (
+            [LOGIN_BUNDLE]
+            if args.only_login
+            else sorted(b for b in env.catalog if b.startswith(SPINE_BUNDLE_PREFIX))
+        )
+
+        for bundle in tqdm(bundles):
+            with env.pin(bundle):
+                env.require(bundle)
+                for prefab in list_prefabs(env, bundle):
+                    owners[prefab] = bundle
+                    if args.only_login and prefab != LOGIN_PREFAB:
+                        continue
+                    if (
+                        quirks.should_skip(prefab)
+                        or quirks.find_glue(prefab) is not None
+                    ):
+                        continue
+                    name = login_name if prefab == LOGIN_PREFAB else prefab
+                    logger.info("Extracting spine from %s", name)
+                    try:
+                        extract_spine(
+                            name,
+                            [read_prefab(env, bundle, prefab)],
+                            args.output,
+                            write_json=args.with_json,
+                        )
+                    except Exception:
+                        logger.exception(f"Failed to extract {name}")
+
+        if args.only_login:
+            return
+
+        # Glued layers can sit in different bundles, so they wait until every
+        # owner is known
+        for glue in quirks.quirks_glue.values():
+            layers = [
+                (owners[layer], layer) for layer in glue.layers if layer in owners
             ]
-            extract_spine(glue.name, objects, args.output, write_json=args.with_json)
-        else:
-            logger.info("Extracting spine from %s", name)
-            try:
-                extract_spine(name, [v.read()], args.output, write_json=args.with_json)
-            except Exception:
-                logger.exception(f"Failed to extract {name}")
+            if len(layers) != len(glue.layers):
+                logger.warning(f"Glue {glue.name} is missing layers, skipping")
                 continue
+            logger.info("Quirk triggered: glue %s", glue.name)
+            layer_bundles = sorted({bundle for bundle, _ in layers})
+            with env.pin(*layer_bundles):
+                env.require(*layer_bundles)
+                try:
+                    extract_spine(
+                        glue.name,
+                        [read_prefab(env, bundle, layer) for bundle, layer in layers],
+                        args.output,
+                        write_json=args.with_json,
+                    )
+                except Exception:
+                    logger.exception(f"Failed to extract {glue.name}")

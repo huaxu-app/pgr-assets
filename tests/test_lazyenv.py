@@ -7,7 +7,7 @@ import weakref
 
 from UnityPy.files import BundleFile, SerializedFile
 
-from pgr_assets.models.env import MEM_FACTOR, ModelEnv
+from pgr_assets.lazyenv import MEM_FACTOR, LazyEnv
 
 SIZES = {"a": 100, "b": 200, "c": 400}
 FLAT: dict[str, list[str]] = {"a": [], "b": [], "c": []}
@@ -47,7 +47,7 @@ class FakeBundleFile(BundleFile):
         }
 
 
-class FakeEnv(ModelEnv):
+class FakeEnv(LazyEnv):
     def __init__(self, store, catalog, graph, budget_mb=2048):
         super().__init__(store, catalog, budget_mb=budget_mb)
         self._graph = graph

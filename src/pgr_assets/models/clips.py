@@ -11,6 +11,7 @@ from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Any, Protocol
 
+from pgr_assets.lazyenv import LazyEnv
 from pgr_assets.models.animation import TRANSFORM_TYPE, Animation, decode_clip
 from pgr_assets.models.controllers import (
     AnimatorState,
@@ -19,7 +20,6 @@ from pgr_assets.models.controllers import (
     hash_paths,
     read_controller,
 )
-from pgr_assets.models.env import ModelEnv
 from pgr_assets.models.events import Event, read_events
 from pgr_assets.models.faces import Faces, StateFace
 from pgr_assets.models.unity import resolve_asset_key, resolve_reader_key
@@ -153,7 +153,7 @@ class ClipInventory:
 
 
 def read_clips(
-    env: ModelEnv,
+    env: LazyEnv,
     target: str,
     sources: Sequence[ClipSource],
     paths: list[str],

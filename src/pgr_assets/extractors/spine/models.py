@@ -17,7 +17,6 @@ class SpineInfo:
 
     order: int = 0
     ids: set[int] = field(default_factory=set)
-    transform_id: int = 0
     default_animation: str | None = None
 
     textures: list[tuple[str, Image.Image]] = field(default_factory=list)
@@ -32,12 +31,7 @@ class SpineInfo:
         )
 
     def __repr__(self):
-        return f"Spine({self.name} position={self.position} size={self.size} scale={self.scale} anchor={self.pivot} order={self.order} tf={self.transform_id})"
-
-    def set_scale(self, scale: float):
-        if scale > 2:
-            scale /= 100
-        self.scale = scale
+        return f"Spine({self.name} position={self.position} size={self.size} scale={self.scale} anchor={self.pivot} order={self.order})"
 
     def to_json(self):
         return {
@@ -71,7 +65,6 @@ class SpineInfo:
 class BoneFollower:
     bone: str
     skeleton: str
-    transforms: set[int] = field(default_factory=set)
     spines: set[str] = field(default_factory=set)
 
     def to_json(self):
@@ -100,7 +93,7 @@ class Spine:
         return max(x[0] for x in sizes), max(x[1] for x in sizes)
 
     def finalize(self):
-        self.update_bone_followers()
+        self.bone_followers = [x for x in self.bone_followers if len(x.spines) > 0]
 
         if self.spine_order_list is None:
             self.spines = sorted(self.spines, key=lambda x: x.order)
@@ -112,13 +105,6 @@ class Spine:
                 key=lambda x: min(index.get(p, float("inf")) for p in x.ids),
                 reverse=True,
             )
-
-    def update_bone_followers(self):
-        for follower in self.bone_followers:
-            for spine in self.spines:
-                if spine.transform_id in follower.transforms:
-                    follower.spines.add(spine.name)
-        self.bone_followers = [x for x in self.bone_followers if len(x.spines) > 0]
 
     def fix_actor_spine(self):
         if self.spine_order_list is None:

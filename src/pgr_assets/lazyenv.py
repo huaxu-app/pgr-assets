@@ -7,11 +7,11 @@ from contextlib import contextmanager
 from typing import Any
 
 import UnityPy
+from UnityPy.enums import ClassIDType
 from UnityPy.environment import simplify_name
-from UnityPy.files import BundleFile
+from UnityPy.files import BundleFile, SerializedFile
 
-from pgr_assets.models.cabmap import CabMap
-from pgr_assets.models.unity import list_dependencies, list_serialized_files
+from pgr_assets.cabmap import CabMap
 from pgr_assets.sources import SourceSet
 from pgr_assets.store import BundleStore
 
@@ -23,7 +23,37 @@ PREFETCH_WORKERS = 16
 MEM_FACTOR = 3
 
 
-class ModelEnv(UnityPy.Environment):
+def list_serialized_files(bundle_file: Any) -> dict[str, SerializedFile]:
+    """
+    The parsed files in a bundle, keyed by cab name.
+
+    A bundle also carries raw readers for resource streams, which hold no
+    objects, and env.files can hold entries that are not bundles at all.
+    """
+    if not isinstance(bundle_file, BundleFile):
+        return {}
+    return {
+        str(cab): f
+        for cab, f in bundle_file.files.items()
+        if isinstance(f, SerializedFile)
+    }
+
+
+def list_dependencies(bundle_file: Any) -> list[str]:
+    """
+    The m_Dependencies of every AssetBundle object in one loaded bundle.
+    """
+    deps: list[str] = []
+    for serialized in list_serialized_files(bundle_file).values():
+        # SerializedFile.__init__ already parsed this. Re-reading the object
+        # costs a full m_Container parse, thousands of PPtrs on a big bundle.
+        bundle: Any = serialized.assetbundle
+        if bundle is not None:
+            deps += bundle.m_Dependencies or []
+    return [d.lower() for d in deps]
+
+
+class LazyEnv(UnityPy.Environment):
     """
     A UnityPy environment that loads bundles on demand and evicts them under a
     byte budget.
@@ -74,7 +104,7 @@ class ModelEnv(UnityPy.Environment):
     @contextmanager
     def pin(self, *bundles: str) -> Iterator[None]:
         """
-        Pin bundles against eviction for one target's build, with `touched`
+        Pin bundles against eviction for one unit of work, with `touched`
         starting over from them. Trims back to budget on the way out.
         """
         self._touched = {b.lower() for b in bundles}
@@ -98,27 +128,49 @@ class ModelEnv(UnityPy.Environment):
         return frozenset(self._touched)
 
     @property
+    def catalog(self) -> frozenset[str]:
+        return frozenset(self._catalog)
+
+    @property
     def sources(self) -> SourceSet:
         return self._store.sources
 
-    def find_object(self, bundle: str, path: str) -> Any:
+    def find_object(
+        self, bundle: str, path: str, kind: ClassIDType | None = None
+    ) -> Any:
         """
         Read one object by container path out of a resident bundle.
+
+        A path can name several objects, a prefab and the meshes baked into it
+        say, and without `kind` the last one listed wins
         """
-        self._touched.add(bundle.lower())
-        for serialized in list_serialized_files(self.files[bundle.lower()]).values():
-            pointer = serialized.container.container_dict.get(path)
+        for container in self._containers(bundle):
+            if kind is None:
+                pointer = container.container_dict.get(path)
+            else:
+                pointer = next(
+                    (
+                        p
+                        for key, p in container.items()
+                        if key == path and p.type == kind
+                    ),
+                    None,
+                )
             if pointer is not None:
                 return pointer.read()
 
         raise KeyError(f"{path} not in {bundle}")
 
     def list_paths(self, bundle: str) -> list[str]:
-        self._touched.add(bundle.lower())
         paths: list[str] = []
-        for serialized in list_serialized_files(self.files[bundle.lower()]).values():
-            paths += serialized.container.keys()
+        for container in self._containers(bundle):
+            paths += container.keys()
         return paths
+
+    def _containers(self, bundle: str) -> Iterator[Any]:
+        self._touched.add(bundle.lower())
+        for serialized in list_serialized_files(self.files[bundle.lower()]).values():
+            yield serialized.container
 
     def find_file(self, name: str, is_dependency: bool = True) -> Any:
         """

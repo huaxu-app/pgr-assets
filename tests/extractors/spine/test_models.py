@@ -1,23 +1,6 @@
 import unittest
 
-from pgr_assets.extractors.spine.models import BoneFollower, Spine, SpineInfo
-
-
-class SetScaleTest(unittest.TestCase):
-    def test_large_scale_divided_by_100(self):
-        info = SpineInfo("a", "a")
-        info.set_scale(300)
-        self.assertEqual(3.0, info.scale)
-
-    def test_normal_scale_kept(self):
-        info = SpineInfo("a", "a")
-        info.set_scale(1.5)
-        self.assertEqual(1.5, info.scale)
-
-    def test_boundary_scale_two_kept(self):
-        info = SpineInfo("a", "a")
-        info.set_scale(2)
-        self.assertEqual(2, info.scale)
+from pgr_assets.extractors.spine.models import Spine, SpineInfo
 
 
 class SizeTest(unittest.TestCase):
@@ -38,20 +21,6 @@ class SizeTest(unittest.TestCase):
         spine = Spine(name="s")
         spine.spines = [SpineInfo("a", "a")]
         self.assertIsNone(spine.size())
-
-
-class BoneFollowerTest(unittest.TestCase):
-    def test_followers_wired_by_transform_id(self):
-        spine = Spine(name="s")
-        spine.spines = [SpineInfo("A", "a", transform_id=7)]
-        spine.bone_followers = [
-            BoneFollower(bone="bone", skeleton="skel", transforms={7}),
-            BoneFollower(bone="bone2", skeleton="skel2", transforms={99}),
-        ]
-        spine.update_bone_followers()
-        # Only the matching follower survives, wired to spine "A".
-        self.assertEqual(1, len(spine.bone_followers))
-        self.assertEqual({"A"}, spine.bone_followers[0].spines)
 
 
 class FinalizeTest(unittest.TestCase):

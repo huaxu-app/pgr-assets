@@ -10,7 +10,7 @@ import re
 from typing import Any
 
 from pgr_assets.models.cubemap import IMAGE_SUFFIX, Cubemap, read_cubemap
-from pgr_assets.models.files import publish_json, read_json, write_bytes
+from pgr_assets.models.files import publish_json, read_json
 from pgr_assets.models.format import (
     CUBEMAP_DIR,
     FORMAT_VERSION,
@@ -19,6 +19,7 @@ from pgr_assets.models.format import (
     CubemapRow,
 )
 from pgr_assets.models.unity import read_pointer, resolve_asset_key
+from pgr_assets.store import write_bytes
 
 logger = logging.getLogger("pgr-assets")
 

@@ -5,9 +5,9 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
+from pgr_assets.lazyenv import LazyEnv
 from pgr_assets.models.clips import read_clips
 from pgr_assets.models.controllers import _find_nearest, read_controller
-from pgr_assets.models.env import ModelEnv
 from pgr_assets.models.files import Publisher
 from pgr_assets.models.manifest import walk_ui_chain
 from pgr_assets.models.scope.characters import CharacterEntry
@@ -146,7 +146,7 @@ class FakePointer:
         return self._clip
 
 
-class FakeEnv(ModelEnv):
+class FakeEnv(LazyEnv):
     """
     Resolves from a dict. Deliberately does not call super().__init__, which
     would want a store and a cab map on disk.
@@ -159,8 +159,8 @@ class FakeEnv(ModelEnv):
     def require(self, *bundles):
         pass
 
-    def find_object(self, bundle, path):
-        # ModelEnv.find_object raises rather than returning None.
+    def find_object(self, bundle, path, kind=None):
+        # LazyEnv.find_object raises rather than returning None.
         return self._objects[bundle, path]
 
 

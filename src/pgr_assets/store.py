@@ -3,15 +3,26 @@ import io
 import logging
 import os
 import re
+import tempfile
 from typing import BinaryIO
 
-from pgr_assets.models.files import write_bytes
 from pgr_assets.sources import BlobDownloadError, SourceSet
 
 logger = logging.getLogger("pgr-assets")
 
 SHA1_LEN = 40
 SHA1_HEX = re.compile(rf"[0-9a-f]{{{SHA1_LEN}}}")
+
+
+def write_bytes(path: str, payload: bytes) -> None:
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path) or ".", prefix=".tmp-")
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+        os.replace(tmp, path)
+    except BaseException:
+        os.unlink(tmp)
+        raise
 
 
 def _evict_stale(path: str) -> None:
